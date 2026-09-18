@@ -7,6 +7,13 @@ language: "<zh-CN|en-US>"
 status: DRAFT
 revision: 1
 stage_round: 1
+run_id: null
+run_status: idle
+run_attempt: 0
+rework_round: 0
+auto_replan_count: 0
+agent_failure_count: 0
+runtime_snapshot_ref: null
 assignments:
   planner: "<planner-participant-id>"
   implementer: "<implementer-participant-id>"
@@ -29,6 +36,10 @@ plan_version: null
 approval_ref: null
 code_delivery_ref: null
 next_expected_output: requirement.md
+question_id: null
+question_ref: null
+suspended_status: null
+resume_role: null
 blocked_reason: null
 unblock_condition: null
 resume_status: null

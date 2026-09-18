@@ -20,6 +20,18 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 
+try:
+    from agent_relay_runtime.markdown_state import (
+        atomic_write_text as _runtime_atomic_write,
+        parse_fenced_yaml as _runtime_parse_fenced_yaml,
+    )
+except ImportError:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from agent_relay_runtime.markdown_state import (
+        atomic_write_text as _runtime_atomic_write,
+        parse_fenced_yaml as _runtime_parse_fenced_yaml,
+    )
+
 
 ROLE_KEYS = {"planner", "implementer", "reviewer"}
 ROLE_LABELS = {key: key.title() for key in ROLE_KEYS}
@@ -75,29 +87,7 @@ def yaml_block(text: str) -> tuple[str, int, int]:
 
 
 def parse_simple_yaml(text: str) -> dict:
-    block, _, _ = yaml_block(text)
-    result: dict = {}
-    current_map: str | None = None
-    for raw in block.splitlines():
-        if not raw.strip() or raw.lstrip().startswith("#"):
-            continue
-        if raw.startswith("  ") and current_map:
-            match = re.match(r"\s{2}([a-zA-Z0-9_-]+):\s*(.*)$", raw)
-            if match:
-                result[current_map][match.group(1)] = unquote(match.group(2))
-            continue
-        match = re.match(r"([a-zA-Z0-9_-]+):\s*(.*)$", raw)
-        if not match:
-            current_map = None
-            continue
-        key, value = match.groups()
-        if value == "":
-            result[key] = {}
-            current_map = key
-        else:
-            result[key] = unquote(value)
-            current_map = None
-    return result
+    return _runtime_parse_fenced_yaml(text)
 
 
 def replace_yaml_block(text: str, block: str) -> str:
@@ -144,18 +134,7 @@ def set_nested(text: str, section: str, key: str, value, *, after: str | None = 
 
 
 def atomic_write(path: Path, content: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
-    temporary_path = Path(temporary)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
-            handle.write(content)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary_path, path)
-    finally:
-        if temporary_path.exists():
-            temporary_path.unlink()
+    _runtime_atomic_write(path, content)
 
 
 def lock_paths(repo: Path) -> tuple[Path, Path]:

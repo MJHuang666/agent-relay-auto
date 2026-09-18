@@ -7,6 +7,11 @@ project: ""
 goal: ""
 language: null
 active_task: null
+tasks:
+  active: []
+  queued: []
+  blocked: []
+  completed: []
 updated_at: null
 ```
 
