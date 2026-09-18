@@ -57,6 +57,16 @@ class AgentRelayContractTests(unittest.TestCase):
         self.assertIn("Uncommitted-state handoff package", migration)
         self.assertIn("未提交状态交接包", migration)
 
+    def test_automated_runner_contract_is_mirrored(self):
+        canonical = CANONICAL / "references/runner.md"
+        mirror = CANONICAL / "assets/project-template/shared/.agents/skills/agent-relay/references/runner.md"
+        self.assertTrue(canonical.is_file())
+        self.assertTrue(mirror.is_file())
+        self.assertEqual(canonical.read_text(encoding="utf-8"), mirror.read_text(encoding="utf-8"))
+        text = (CANONICAL / "SKILL.md").read_text(encoding="utf-8")
+        for command in ("Runner 状态", "启动 Runner", "暂停当前任务", "立即中断当前角色", "恢复当前任务"):
+            self.assertIn(command, text)
+
 
 if __name__ == "__main__":
     unittest.main()

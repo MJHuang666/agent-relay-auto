@@ -1,6 +1,6 @@
 # Agent Relay Usage Guide
 
-This guide covers `agent-relay` Skill v1.5.0: initialization, role handoff, Agent replacement, pause and recovery, state inspection, and task acceptance.
+This guide covers `agent-relay` Skill v1.6.0: initialization, role handoff, Agent replacement, pause and recovery, state inspection, and task acceptance.
 
 ## Initialize a repository
 
@@ -140,3 +140,23 @@ Initialize → choose language and role Agents → Planner
 ```
 
 See the [Skill instructions](../shared/.agents/skills/agent-relay/SKILL.md), [initialization reference](../shared/.agents/skills/agent-relay/references/initialization.md), [protocol](../shared/.agents/skills/agent-relay/references/protocol.md), and [installation guide](../distribution/INSTALL.md) for details.
+
+## Automated Runner
+
+Initialization shows the defaults: three rework rounds, one automatic replan, one Agent failure retry, same-role fallback disabled, and `balanced` cost control (warn after run 8 and block new runs after run 12). Existing configuration displays all Planner, Implementer, and Reviewer Agent/model/reasoning tuples with Confirm or Modify choices.
+
+The macOS launchd Runner is installed only after explicit confirmation. Without confirmation the project stays in `manual` mode. Different projects run independently; the first version executes one active task at a time within each project.
+
+```text
+$agent-relay runner status
+$agent-relay start runner
+$agent-relay stop runner
+$agent-relay restart runner
+$agent-relay view logs
+$agent-relay follow logs
+$agent-relay pause current task
+$agent-relay interrupt current role
+$agent-relay resume current task
+```
+
+The Runner starts a next role only after lock, revision, and legal state-transition checks. Reviewer evidence and a Planner final report are required before automatic `DONE`. `DONE` still does not authorize merge, push, release, or deploy.

@@ -72,6 +72,8 @@ Files are not transactional. Before the STATE update, the prior participant stil
 
 DONE means task acceptance only. It does not authorize merge, release, deployment, deletion, or rollback.
 
+In automatic mode, the Runner is an orchestrator, not a reviewer. It may start the next participant only after a valid CAS-protected state transition. It must not interpret chat text or stdout containing “pass” as a verdict. A process interruption is resumable only through a native session or a checkpoint restart after checking the actual diff and live processes; an uncertain remote run is `BLOCKED`.
+
 ## Repair and Management
 
 Registration, participant replacement, active-task switching, takeover, and state repair are management operations. Perform them only when explicitly requested or necessary to carry out an already explicit request, record the reason and evidence, and do not mix them with product edits.

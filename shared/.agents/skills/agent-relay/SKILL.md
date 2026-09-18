@@ -87,3 +87,24 @@ Each red flag means stop writing and follow the read-only or repair path in the 
 | A writer is old or silent, so replace its session ID | Confirm it stopped and obtain explicit takeover authorization first |
 | execution is idle, so any assigned role may start | Only current_participant may start |
 | Reviewer sees a trivial fix | Record the finding and hand it to Implementer |
+
+## Automated Runner
+
+During initialization, after language and the three role bindings are selected, show the automation policy and ask for explicit Runner installation confirmation. If confirmed, use the bundled `setup_runner.py` and register the repository; otherwise keep `mode: manual` and continue the file-based workflow.
+
+In automatic mode, Planner remains the user-facing decision entry point. The Runner may start Planner, Implementer, Reviewer, and the final Planner reporting pass through their configured non-interactive adapters. A decision request enters `WAITING_USER` and sends a notification without stealing focus. Reviewer evidence is required before `PASS`; Planner's valid final report is required before `DONE`.
+
+Use these management commands through `runnerctl.py` or the equivalent bilingual command:
+
+| 中文 | English |
+|---|---|
+| `$agent-relay Runner 状态` | `$agent-relay runner status` |
+| `$agent-relay 启动 Runner` | `$agent-relay start runner` |
+| `$agent-relay 停止 Runner` | `$agent-relay stop runner` |
+| `$agent-relay 重启 Runner` | `$agent-relay restart runner` |
+| `$agent-relay 查看日志` / `$agent-relay 跟踪日志` | `$agent-relay view logs` / `$agent-relay follow logs` |
+| `$agent-relay 暂停当前任务` | `$agent-relay pause current task` |
+| `$agent-relay 立即中断当前角色` | `$agent-relay interrupt current role` |
+| `$agent-relay 恢复当前任务` | `$agent-relay resume current task` |
+
+Runner may automate planning, implementation, testing, review, rework, and reporting. `DONE` is acceptance only; it never authorizes merge, push, release, deploy, production writes, or risk acceptance.

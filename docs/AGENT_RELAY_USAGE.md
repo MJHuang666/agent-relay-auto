@@ -1,6 +1,6 @@
 # Agent Relay 使用手册
 
-本文对应 `agent-relay` Skill v1.5.0，说明初始化、任务接力、Agent 更换、暂停恢复、状态查询和最终验收。
+本文对应 `agent-relay` Skill v1.6.0，说明初始化、任务接力、Agent 更换、暂停恢复、状态查询和最终验收。
 
 ## 1. 初始化仓库
 
@@ -170,3 +170,23 @@ Codex、Cursor、DeepSeek Harness 和 OpenCode 共用根 `AGENTS.md`、`docs/age
 ```
 
 更多细节见 [Skill 主说明](../shared/.agents/skills/agent-relay/SKILL.md)、[初始化参考](../shared/.agents/skills/agent-relay/references/initialization.md)、[协作协议](../shared/.agents/skills/agent-relay/references/protocol.md)、[安装说明](../distribution/INSTALL.md)。
+
+## 14. 自动 Runner
+
+初始化时会显示自动策略默认值：返修 3 次、自动重规划 1 次、Agent 失败重试 1 次、同角色备用 Agent 默认关闭、成本控制 `balanced`（第 8 次提醒，第 12 次停止新的 run）。已有配置会显示 Planner、Implementer、Reviewer 的 Agent、模型和推理强度，选择“确认”或“修改”。
+
+只有用户明确确认后才安装 macOS launchd Runner；否则保持 `manual` 模式。自动模式下不同项目独立并行，同一项目第一版只运行一个活动任务。
+
+```text
+$agent-relay Runner 状态
+$agent-relay 启动 Runner
+$agent-relay 停止 Runner
+$agent-relay 重启 Runner
+$agent-relay 查看日志
+$agent-relay 跟踪日志
+$agent-relay 暂停当前任务
+$agent-relay 立即中断当前角色
+$agent-relay 恢复当前任务
+```
+
+Runner 只根据锁、revision 和合法状态转换启动下一角色。Reviewer 必须写出证据，Planner 必须写出最终报告，才会自动进入 `DONE`。`DONE` 仍不代表 merge、push、release 或 deploy。

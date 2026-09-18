@@ -2,6 +2,13 @@
 
 All notable changes to Agent Relay are documented here. Project Role Workflow is the legacy name used before v1.5.
 
+## [1.6.0] - 2026-09-19
+
+- Added the project-scoped Relay Runner with serial task queues, CAS claims, run logs, notifications, pause/interruption recovery, and automatic Reviewer-to-Planner reporting.
+- Added Codex, OpenCode, and Claude Code non-interactive adapters with model/session contracts; unsupported tools remain manual participants.
+- Added explicit initialization policy/model review, optional macOS launchd installation, versioned runtime upgrades, and bilingual Runner commands.
+- Automatic `DONE` remains acceptance only and does not authorize merge, push, release, or deploy.
+
 ## [1.5.0] - 2026-09-17
 
 ### Added

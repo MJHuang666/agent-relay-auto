@@ -14,6 +14,14 @@ for required_file in \
   shared/.agents/skills/agent-relay/SKILL.md \
   shared/.agents/skills/agent-relay/references/state-helper.md \
   shared/.agents/skills/agent-relay/scripts/workflow_state.py \
+  shared/.agents/skills/agent-relay/scripts/relay_state.py \
+  shared/.agents/skills/agent-relay/scripts/setup_runner.py \
+  shared/.agents/skills/agent-relay/scripts/runnerctl.py \
+  shared/.agents/skills/agent-relay/scripts/configure_runtime.py \
+  shared/.agents/skills/agent-relay/scripts/agent_relay_runner.py \
+  shared/.agents/skills/agent-relay/scripts/agent_relay_runtime/state_store.py \
+  shared/.agents/skills/agent-relay/scripts/agent_relay_runtime/runner.py \
+  shared/.agents/skills/agent-relay/scripts/agent_relay_runtime/recovery.py \
   shared/.agents/skills/agent-relay/assets/project-template/shared/.agents/skills/agent-relay/SKILL.md \
   shared/.agents/skills/agent-relay/assets/project-template/shared/.agents/skills/agent-relay/scripts/workflow_state.py \
   shared/docs/agent/knowledge-index.md \
@@ -37,6 +45,13 @@ cmp -s \
 test -x shared/.agents/skills/agent-relay/scripts/workflow_state.py \
   || fail "workflow_state.py must be executable"
 
+while IFS= read -r source_script; do
+  relative="${source_script#shared/.agents/skills/agent-relay/}"
+  mirror="shared/.agents/skills/agent-relay/assets/project-template/shared/.agents/skills/agent-relay/${relative}"
+  test -f "$mirror" || fail "missing bootstrap script mirror: $relative"
+  cmp -s "$source_script" "$mirror" || fail "bootstrap script differs: $relative"
+done < <(find shared/.agents/skills/agent-relay/scripts -type f -name '*.py' ! -name '._*' ! -path '*/__pycache__/*' -print | sort)
+
 python3 -m unittest discover -v tests
 
 for skill_file in \
@@ -51,6 +66,11 @@ cmp -s \
   shared/.agents/skills/agent-relay/SKILL.md \
   shared/.agents/skills/agent-relay/assets/project-template/shared/.agents/skills/agent-relay/SKILL.md \
   || fail "bootstrap Skill differs from source"
+
+cmp -s \
+  shared/.agents/skills/agent-relay/references/runner.md \
+  shared/.agents/skills/agent-relay/assets/project-template/shared/.agents/skills/agent-relay/references/runner.md \
+  || fail "runner reference bootstrap copy differs from source"
 
 cmp -s \
   shared/docs/agent/knowledge-index.md \

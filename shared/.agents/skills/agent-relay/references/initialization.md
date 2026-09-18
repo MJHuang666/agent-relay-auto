@@ -67,6 +67,8 @@ Present these numbered tool choices for each role:
 
 One tool may serve multiple roles, but every identity needs a unique `participant_id`. Store the stable tool ID, not the display label.
 
+After role/tool selection, inspect existing Runner configuration. If no configuration exists, present defaults (`max_rework_rounds: 3`, `max_auto_replans: 1`, `max_agent_retries: 1`, `allow_same_role_fallback: false`, balanced cost control) and allow modification. If configuration exists, show all three role Agent/model/reasoning tuples and offer only Confirm or Modify. Ask separately whether to install and start the macOS launchd Runner; declining leaves the project in manual mode.
+
 For each identity, create a Profile from `docs/agent/profiles/_templates/participant.md` and register the immutable `(participant_id, tool, role)` tuple in `docs/agent/role-bindings.md`. Do not infer these choices from the current tool or create a real task during initialization.
 
 ## Verify

@@ -58,3 +58,5 @@ python3 .agents/skills/agent-relay/scripts/workflow_state.py \
 ```
 
 Releasing a lock does not change task ownership. Re-read status and revision before attempting the intended operation again.
+
+The automatic commands use the same lock and revision rules. `relay_state.py wait-user`, `answer`, `verdict`, `report-done`, and `cancel` are coordination writes; they never modify product files. A stale `expected_revision` must be discarded and re-read rather than retried.
