@@ -2,7 +2,7 @@
 
 > Make memory belong to the project, not the Agent.
 
-[简体中文](README.zh-CN.md) · [Release](https://github.com/MJHuang666/agent-relay-auto/releases/latest) · [Usage guide](docs/AGENT_RELAY_AUTO_USAGE.en-US.md)
+[简体中文](README.zh-CN.md) · [Project introduction](docs/PROJECT_INTRO.en-US.md) · [Release](https://github.com/MJHuang666/agent-relay-auto/releases/latest) · [Usage guide](docs/AGENT_RELAY_AUTO_USAGE.en-US.md)
 
 [![Release](https://img.shields.io/github/v/release/MJHuang666/agent-relay-auto?display_name=tag&color=7C3AED)](https://github.com/MJHuang666/agent-relay-auto/releases/latest)
 [![License](https://img.shields.io/badge/license-Apache--2.0-0EA5E9)](LICENSE)

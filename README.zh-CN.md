@@ -2,7 +2,7 @@
 
 > 让记忆属于项目，而不是属于某个 Agent。
 
-[English](README.md) · [最新版本](https://github.com/MJHuang666/agent-relay-auto/releases/latest) · [使用手册](docs/AGENT_RELAY_AUTO_USAGE.md)
+[English](README.md) · [项目介绍](docs/PROJECT_INTRO.md) · [最新版本](https://github.com/MJHuang666/agent-relay-auto/releases/latest) · [使用手册](docs/AGENT_RELAY_AUTO_USAGE.md)
 
 [![Release](https://img.shields.io/github/v/release/MJHuang666/agent-relay-auto?display_name=tag&color=7C3AED)](https://github.com/MJHuang666/agent-relay-auto/releases/latest)
 [![License](https://img.shields.io/badge/license-Apache--2.0-0EA5E9)](LICENSE)
