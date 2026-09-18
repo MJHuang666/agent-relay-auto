@@ -1,6 +1,6 @@
 # Open-Source Release Baseline Implementation Plan
 
-> Historical note: “Project Role Workflow” is the pre-v1.5 name of Agent Relay. This plan is preserved as an implementation record.
+> Historical note: “Project Role Workflow” is the pre-v1.5 name of Agent Relay Auto. This plan is preserved as an implementation record.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 

@@ -6,7 +6,7 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[2]
-RUNTIME = ROOT / "shared/.agents/skills/agent-relay/scripts/agent_relay_runtime"
+RUNTIME = ROOT / "shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime"
 
 
 def load_runtime_module(name: str, relative_path: str | None = None):

@@ -8,7 +8,7 @@ from pathlib import Path
 
 SCRIPT = (
     Path(__file__).resolve().parents[1]
-    / "shared/.agents/skills/agent-relay/scripts/workflow_state.py"
+    / "shared/.agents/skills/agent-relay-auto/scripts/workflow_state.py"
 )
 
 
@@ -185,7 +185,7 @@ created_at: "2026-01-01T00:00:00Z"
         worktree_git_dir = self.repo / ".git-worktree"
         worktree_git_dir.mkdir()
         git_dir.write_text("gitdir: .git-worktree\n", encoding="utf-8")
-        (worktree_git_dir / "agent-relay.lock").write_text(
+        (worktree_git_dir / "agent-relay-auto.lock").write_text(
             '{"transaction_id":"worktree-lock"}', encoding="utf-8"
         )
         payload = json.loads(self.run_cli("status").stdout)
@@ -310,7 +310,7 @@ created_at: "2026-01-01T00:00:00Z"
         self.assertEqual(self.state_text(), before)
 
     def test_existing_lock_blocks_mutation(self):
-        lock = self.repo / ".git/agent-relay.lock"
+        lock = self.repo / ".git/agent-relay-auto.lock"
         lock.write_text('{"transaction_id":"other"}', encoding="utf-8")
         before = self.state_text()
         result = self.replace("impl-a", "impl-b", 7, expect=3)
@@ -339,7 +339,7 @@ created_at: "2026-01-01T00:00:00Z"
         (self.repo / ".git/project-role-workflow.lock").write_text(
             '{"transaction_id":"legacy-lock"}', encoding="utf-8"
         )
-        (self.repo / ".git/agent-relay.lock").write_text(
+        (self.repo / ".git/agent-relay-auto.lock").write_text(
             '{"transaction_id":"canonical-lock"}', encoding="utf-8"
         )
         result = self.run_cli(
@@ -364,7 +364,7 @@ created_at: "2026-01-01T00:00:00Z"
         self.assertIn("writer_session: null", self.state_text())
 
     def test_release_lock_requires_authorization(self):
-        lock = self.repo / ".git/agent-relay.lock"
+        lock = self.repo / ".git/agent-relay-auto.lock"
         lock.write_text('{"transaction_id":"orphan"}', encoding="utf-8")
         denied = self.run_cli("release-stale-lock", expect=2)
         self.assertIn("authorization", denied.stderr)

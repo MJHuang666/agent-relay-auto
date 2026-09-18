@@ -4,7 +4,7 @@
 
 # Local agent diagnostics and temporary verification output
 .learnings/
-.agent-relay/
+.agent-relay-auto/
 
 # Python test and helper caches
 __pycache__/

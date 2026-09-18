@@ -1,6 +1,0 @@
-# Agent Relay local runtime state, process logs, and native session references
-.agent-relay/
-__pycache__/
-*.py[cod]
-._*
-.DS_Store

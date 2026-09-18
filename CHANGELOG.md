@@ -1,6 +1,11 @@
 # Changelog
 
-All notable changes to Agent Relay are documented here. Project Role Workflow is the legacy name used before v1.5.
+All notable changes to Agent Relay Auto are documented here. Project Role Workflow and Agent Relay are legacy names retained only for migration history.
+
+## [1.6.1] - 2026-09-19
+
+- Renamed the automatic edition's public Skill, commands, project-local paths, documentation, and release package from `agent-relay` to `agent-relay-auto`.
+- Kept `project-role-workflow` as a thin compatibility redirect; it does not contain a second workflow implementation.
 
 ## [1.6.0] - 2026-09-19
 
@@ -19,7 +24,7 @@ All notable changes to Agent Relay are documented here. Project Role Workflow is
 
 ### Changed
 
-- Renamed the public Skill, commands, project directory, documentation, and release package from `project-role-workflow` to `agent-relay`.
+- Renamed the public Skill, commands, project directory, documentation, and release package from `project-role-workflow` to `agent-relay-auto`.
 - Retained a thin legacy redirect until v2.0 and made the state helper recognize old lock names without permitting ambiguous automatic release.
 
 ## [1.4.0] - 2026-09-17

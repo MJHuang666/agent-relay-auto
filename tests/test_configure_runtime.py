@@ -27,7 +27,7 @@ class ConfigureRuntimeTests(unittest.TestCase):
             )
             self.assertEqual(result["mode"], "manual")
             self.assertTrue((repo / "docs/agent/automation-policy.yaml").is_file())
-            self.assertTrue((repo / ".agent-relay/local.yaml").is_file())
+            self.assertTrue((repo / ".agent-relay-auto/local.yaml").is_file())
             self.assertNotIn("token", (repo / "docs/agent/automation-policy.yaml").read_text().lower())
 
     def test_existing_configuration_is_reported_for_confirm_or_modify(self):

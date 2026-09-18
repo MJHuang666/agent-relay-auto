@@ -11,26 +11,26 @@ fail() {
 
 for required_file in \
   LICENSE README.md README.zh-CN.md CHANGELOG.md CONTRIBUTING.md SECURITY.md \
-  shared/.agents/skills/agent-relay/SKILL.md \
-  shared/.agents/skills/agent-relay/references/state-helper.md \
-  shared/.agents/skills/agent-relay/scripts/workflow_state.py \
-  shared/.agents/skills/agent-relay/scripts/relay_state.py \
-  shared/.agents/skills/agent-relay/scripts/setup_runner.py \
-  shared/.agents/skills/agent-relay/scripts/runnerctl.py \
-  shared/.agents/skills/agent-relay/scripts/configure_runtime.py \
-  shared/.agents/skills/agent-relay/scripts/agent_relay_runner.py \
-  shared/.agents/skills/agent-relay/scripts/agent_relay_runtime/state_store.py \
-  shared/.agents/skills/agent-relay/scripts/agent_relay_runtime/runner.py \
-  shared/.agents/skills/agent-relay/scripts/agent_relay_runtime/recovery.py \
-  shared/.agents/skills/agent-relay/assets/project-template/shared/.agents/skills/agent-relay/SKILL.md \
-  shared/.agents/skills/agent-relay/assets/project-template/shared/.agents/skills/agent-relay/scripts/workflow_state.py \
+  shared/.agents/skills/agent-relay-auto/SKILL.md \
+  shared/.agents/skills/agent-relay-auto/references/state-helper.md \
+  shared/.agents/skills/agent-relay-auto/scripts/workflow_state.py \
+  shared/.agents/skills/agent-relay-auto/scripts/relay_state.py \
+  shared/.agents/skills/agent-relay-auto/scripts/setup_runner.py \
+  shared/.agents/skills/agent-relay-auto/scripts/runnerctl.py \
+  shared/.agents/skills/agent-relay-auto/scripts/configure_runtime.py \
+  shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runner.py \
+  shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime/state_store.py \
+  shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime/runner.py \
+  shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime/recovery.py \
+  shared/.agents/skills/agent-relay-auto/assets/project-template/shared/.agents/skills/agent-relay-auto/SKILL.md \
+  shared/.agents/skills/agent-relay-auto/assets/project-template/shared/.agents/skills/agent-relay-auto/scripts/workflow_state.py \
   shared/docs/agent/knowledge-index.md \
-  shared/.agents/skills/agent-relay/assets/project-template/shared/docs/agent/knowledge-index.md \
-  shared/.agents/skills/agent-relay/assets/project-template/locales/zh-CN/docs/agent/knowledge-index.md \
-  shared/.agents/skills/agent-relay/assets/project-template/locales/en-US/docs/agent/knowledge-index.md \
+  shared/.agents/skills/agent-relay-auto/assets/project-template/shared/docs/agent/knowledge-index.md \
+  shared/.agents/skills/agent-relay-auto/assets/project-template/locales/zh-CN/docs/agent/knowledge-index.md \
+  shared/.agents/skills/agent-relay-auto/assets/project-template/locales/en-US/docs/agent/knowledge-index.md \
   compat/project-role-workflow/SKILL.md \
   docs/migration-v1.5.md \
-  shared/.agents/skills/agent-relay/assets/project-template/locales/zh-CN/docs/agent/protocol.md \
+  shared/.agents/skills/agent-relay-auto/assets/project-template/locales/zh-CN/docs/agent/protocol.md \
   shared/docs/agent/tasks/_template/STATE.md \
   codex/prompts/replace-agent.md \
   cursor/.cursor/commands/replace-agent.md \
@@ -39,47 +39,47 @@ for required_file in \
 done
 
 cmp -s \
-  shared/.agents/skills/agent-relay/scripts/workflow_state.py \
-  shared/.agents/skills/agent-relay/assets/project-template/shared/.agents/skills/agent-relay/scripts/workflow_state.py \
+  shared/.agents/skills/agent-relay-auto/scripts/workflow_state.py \
+  shared/.agents/skills/agent-relay-auto/assets/project-template/shared/.agents/skills/agent-relay-auto/scripts/workflow_state.py \
   || fail "workflow_state.py bootstrap copy differs from source"
-test -x shared/.agents/skills/agent-relay/scripts/workflow_state.py \
+test -x shared/.agents/skills/agent-relay-auto/scripts/workflow_state.py \
   || fail "workflow_state.py must be executable"
 
 while IFS= read -r source_script; do
-  relative="${source_script#shared/.agents/skills/agent-relay/}"
-  mirror="shared/.agents/skills/agent-relay/assets/project-template/shared/.agents/skills/agent-relay/${relative}"
+  relative="${source_script#shared/.agents/skills/agent-relay-auto/}"
+  mirror="shared/.agents/skills/agent-relay-auto/assets/project-template/shared/.agents/skills/agent-relay-auto/${relative}"
   test -f "$mirror" || fail "missing bootstrap script mirror: $relative"
   cmp -s "$source_script" "$mirror" || fail "bootstrap script differs: $relative"
-done < <(find shared/.agents/skills/agent-relay/scripts -type f -name '*.py' ! -name '._*' ! -path '*/__pycache__/*' -print | sort)
+done < <(find shared/.agents/skills/agent-relay-auto/scripts -type f -name '*.py' ! -name '._*' ! -path '*/__pycache__/*' -print | sort)
 
 python3 -m unittest discover -v tests
 
 for skill_file in \
-  shared/.agents/skills/agent-relay/SKILL.md \
-  shared/.agents/skills/agent-relay/assets/project-template/shared/.agents/skills/agent-relay/SKILL.md; do
+  shared/.agents/skills/agent-relay-auto/SKILL.md \
+  shared/.agents/skills/agent-relay-auto/assets/project-template/shared/.agents/skills/agent-relay-auto/SKILL.md; do
   test "$(sed -n '1p' "$skill_file")" = '---' || fail "missing frontmatter start: $skill_file"
   sed -n '2,40p' "$skill_file" | grep -Eq '^name: [a-z0-9-]+$' || fail "invalid name field: $skill_file"
   sed -n '2,40p' "$skill_file" | grep -Eq '^description: .+' || fail "missing description field: $skill_file"
 done
 
 cmp -s \
-  shared/.agents/skills/agent-relay/SKILL.md \
-  shared/.agents/skills/agent-relay/assets/project-template/shared/.agents/skills/agent-relay/SKILL.md \
+  shared/.agents/skills/agent-relay-auto/SKILL.md \
+  shared/.agents/skills/agent-relay-auto/assets/project-template/shared/.agents/skills/agent-relay-auto/SKILL.md \
   || fail "bootstrap Skill differs from source"
 
 cmp -s \
-  shared/.agents/skills/agent-relay/references/runner.md \
-  shared/.agents/skills/agent-relay/assets/project-template/shared/.agents/skills/agent-relay/references/runner.md \
+  shared/.agents/skills/agent-relay-auto/references/runner.md \
+  shared/.agents/skills/agent-relay-auto/assets/project-template/shared/.agents/skills/agent-relay-auto/references/runner.md \
   || fail "runner reference bootstrap copy differs from source"
 
 cmp -s \
   shared/docs/agent/knowledge-index.md \
-  shared/.agents/skills/agent-relay/assets/project-template/shared/docs/agent/knowledge-index.md \
+  shared/.agents/skills/agent-relay-auto/assets/project-template/shared/docs/agent/knowledge-index.md \
   || fail "knowledge-index bootstrap copy differs from source"
 
 test ! -d shared/.agents/skills/project-role-workflow \
   || fail "legacy full Skill directory must not remain in the template"
-test ! -d shared/.agents/skills/agent-relay/assets/project-template/shared/.agents/skills/project-role-workflow \
+test ! -d shared/.agents/skills/agent-relay-auto/assets/project-template/shared/.agents/skills/project-role-workflow \
   || fail "legacy full Skill directory must not remain in bootstrap assets"
 test ! -e compat/project-role-workflow/assets \
   || fail "compatibility shim must not contain assets"
@@ -90,28 +90,28 @@ test ! -e compat/project-role-workflow/scripts \
 
 for tool_id in deepseek-harness opencode; do
   for tool_file in \
-    shared/.agents/skills/agent-relay/references/initialization.md \
-    shared/.agents/skills/agent-relay/assets/project-template/shared/.agents/skills/agent-relay/references/initialization.md \
+    shared/.agents/skills/agent-relay-auto/references/initialization.md \
+    shared/.agents/skills/agent-relay-auto/assets/project-template/shared/.agents/skills/agent-relay-auto/references/initialization.md \
     shared/docs/agent/profiles/_templates/participant.md \
-    shared/.agents/skills/agent-relay/assets/project-template/shared/docs/agent/profiles/_templates/participant.md \
-    shared/.agents/skills/agent-relay/assets/project-template/locales/zh-CN/docs/agent/profiles/_templates/participant.md \
-    shared/.agents/skills/agent-relay/assets/project-template/locales/en-US/docs/agent/profiles/_templates/participant.md; do
+    shared/.agents/skills/agent-relay-auto/assets/project-template/shared/docs/agent/profiles/_templates/participant.md \
+    shared/.agents/skills/agent-relay-auto/assets/project-template/locales/zh-CN/docs/agent/profiles/_templates/participant.md \
+    shared/.agents/skills/agent-relay-auto/assets/project-template/locales/en-US/docs/agent/profiles/_templates/participant.md; do
     grep -Fq "$tool_id" "$tool_file" || fail "missing $tool_id in $tool_file"
   done
 done
 
 for integration_file in \
   shared/docs/agent/integrations.md \
-  shared/.agents/skills/agent-relay/assets/project-template/shared/docs/agent/integrations.md \
-  shared/.agents/skills/agent-relay/assets/project-template/locales/zh-CN/docs/agent/integrations.md \
-  shared/.agents/skills/agent-relay/assets/project-template/locales/en-US/docs/agent/integrations.md; do
+  shared/.agents/skills/agent-relay-auto/assets/project-template/shared/docs/agent/integrations.md \
+  shared/.agents/skills/agent-relay-auto/assets/project-template/locales/zh-CN/docs/agent/integrations.md \
+  shared/.agents/skills/agent-relay-auto/assets/project-template/locales/en-US/docs/agent/integrations.md; do
   grep -Fq 'DeepSeek Harness' "$integration_file" || fail "missing DeepSeek Harness in $integration_file"
   grep -Fq 'OpenCode' "$integration_file" || fail "missing OpenCode in $integration_file"
 done
 
-test ! -d shared/.agents/skills/agent-relay/assets/project-template/adapters/dsh \
+test ! -d shared/.agents/skills/agent-relay-auto/assets/project-template/adapters/dsh \
   || fail "DeepSeek Harness must reuse the shared entry, not a duplicate adapter"
-test ! -d shared/.agents/skills/agent-relay/assets/project-template/adapters/opencode \
+test ! -d shared/.agents/skills/agent-relay-auto/assets/project-template/adapters/opencode \
   || fail "OpenCode must reuse the shared entry, not a duplicate adapter"
 
 python3 - <<'PY'
@@ -145,14 +145,14 @@ PY
 metadata_files="$(find . \( -path './.git' -o -path './._.git' -o -path './dist' -o -path './.learnings' \) -prune -o -type f \( -name '._*' -o -name '.DS_Store' \) -print)"
 test -z "$metadata_files" || fail "metadata files must not be tracked source: $metadata_files"
 
-bootstrap_example='shared/.agents/skills/agent-relay/assets/project-template/shared/docs/agent/tasks/TASK-EXAMPLE-001'
+bootstrap_example='shared/.agents/skills/agent-relay-auto/assets/project-template/shared/docs/agent/tasks/TASK-EXAMPLE-001'
 test ! -e "$bootstrap_example" || fail "bootstrap assets must not include TASK-EXAMPLE-001"
 
-build_dir="$(mktemp -d "${TMPDIR:-/tmp}/agent-relay-validate.XXXXXX")"
+build_dir="$(mktemp -d "${TMPDIR:-/tmp}/agent-relay-auto-validate.XXXXXX")"
 trap 'rm -rf -- "$build_dir"' EXIT
-package_root="$build_dir/agent-relay-skill-pack"
+package_root="$build_dir/agent-relay-auto-skill-pack"
 version="$(tr -d '[:space:]' < distribution/VERSION)"
-archive="$build_dir/agent-relay-skill-pack-v${version}.zip"
+archive="$build_dir/agent-relay-auto-skill-pack-v${version}.zip"
 checksum="$archive.sha256"
 
 mkdir -p "$package_root"
@@ -166,7 +166,7 @@ cp distribution/INSTALL.md distribution/INSTALL_PROMPT.md distribution/VERSION "
 
 (
   cd "$build_dir"
-  zip -qr "$archive" agent-relay-skill-pack
+  zip -qr "$archive" agent-relay-auto-skill-pack
 )
 unzip -tqq "$archive"
 

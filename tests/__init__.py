@@ -1,1 +1,1 @@
-"""Agent Relay test package."""
+"""Agent Relay Auto test package."""

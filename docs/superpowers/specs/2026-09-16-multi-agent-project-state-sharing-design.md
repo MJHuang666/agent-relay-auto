@@ -1,6 +1,6 @@
-# Agent Relay 设计规格
+# Agent Relay Auto 设计规格
 
-版本：1.5.0，2026-09-17。Agent Relay 是轻量级多 Agent 接力协作框架：Coding Agent 不共享对话上下文，而是通过代码仓库接力可迁移、可恢复的项目状态。身份、活动任务、交接、检查点、恢复、语言选择、子代理门禁、Agent 动态更换、DeepSeek Harness 与 OpenCode 共享入口、Knowledge Index 和全新 clone 恢复验证均属于设计基线。没有经过真实新会话验证的第三方适配仍必须标为待验证。
+版本：1.5.0，2026-09-17。Agent Relay Auto 是轻量级多 Agent 接力协作框架：Coding Agent 不共享对话上下文，而是通过代码仓库接力可迁移、可恢复的项目状态。身份、活动任务、交接、检查点、恢复、语言选择、子代理门禁、Agent 动态更换、DeepSeek Harness 与 OpenCode 共享入口、Knowledge Index 和全新 clone 恢复验证均属于设计基线。没有经过真实新会话验证的第三方适配仍必须标为待验证。
 
 ## 1. 目标
 
@@ -80,7 +80,7 @@ participant_id 在项目内唯一，其 tool、role 创建后不可变，也不�
 ├── shared/
 │   ├── .agents/
 │   │   └── skills/
-│   │       └── agent-relay/
+│   │       └── agent-relay-auto/
 │   │           └── SKILL.md
 │   └── docs/
 │       └── agent/
@@ -199,7 +199,7 @@ Codex 通过根目录 `AGENTS.md` 自动获得最小、稳定、始终有效的�
 
 ### 7.2 共享 Skill
 
-`.agents/skills/agent-relay/SKILL.md` 承载完整操作流程。它供 Codex、Cursor、DeepSeek Harness 和 OpenCode 共用，并为其他 Agent 提供可直接阅读的协议。
+`.agents/skills/agent-relay-auto/SKILL.md` 承载完整操作流程。它供 Codex、Cursor、DeepSeek Harness 和 OpenCode 共用，并为其他 Agent 提供可直接阅读的协议。
 
 Skill 应在以下意图下触发：创建任务、规划任务、实施计划、继续当前任务、处理审查意见、审查变更、最终验证和关闭任务。
 

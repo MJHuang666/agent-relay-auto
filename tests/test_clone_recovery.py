@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE = ROOT / "shared/.agents/skills/agent-relay/assets/project-template"
+TEMPLATE = ROOT / "shared/.agents/skills/agent-relay-auto/assets/project-template"
 
 
 class CloneRecoveryTests(unittest.TestCase):
@@ -23,8 +23,8 @@ class CloneRecoveryTests(unittest.TestCase):
             source.mkdir()
             shutil.copytree(TEMPLATE / "shared/docs", source / "docs")
             shutil.copytree(
-                TEMPLATE / "shared/.agents/skills/agent-relay",
-                source / ".agents/skills/agent-relay",
+                TEMPLATE / "shared/.agents/skills/agent-relay-auto",
+                source / ".agents/skills/agent-relay-auto",
             )
             shutil.copy(
                 TEMPLATE / "adapters/codex/AGENTS.md", source / "AGENTS.md"
@@ -116,7 +116,7 @@ updated_at: "2026-09-17T00:00:00Z"
             (source / "UNCOMMITTED-SENTINEL.txt").write_text("not migrated\n", encoding="utf-8")
             subprocess.run(["git", "clone", str(source), str(clone)], check=True, capture_output=True, text=True)
 
-            helper = clone / ".agents/skills/agent-relay/scripts/workflow_state.py"
+            helper = clone / ".agents/skills/agent-relay-auto/scripts/workflow_state.py"
             result = subprocess.run(
                 [sys.executable, str(helper), "--repo", str(clone), "status"],
                 check=True,

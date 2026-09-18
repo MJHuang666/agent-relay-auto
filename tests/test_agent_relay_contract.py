@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-CANONICAL = ROOT / "shared/.agents/skills/agent-relay"
+CANONICAL = ROOT / "shared/.agents/skills/agent-relay-auto"
 LEGACY_IN_TEMPLATE = ROOT / "shared/.agents/skills/project-role-workflow"
 COMPATIBILITY_SHIM = ROOT / "compat/project-role-workflow/SKILL.md"
 
@@ -12,7 +12,7 @@ class AgentRelayContractTests(unittest.TestCase):
     def test_canonical_skill_identity(self):
         skill = CANONICAL / "SKILL.md"
         self.assertTrue(skill.is_file())
-        self.assertIn("name: agent-relay", skill.read_text(encoding="utf-8"))
+        self.assertIn("name: agent-relay-auto", skill.read_text(encoding="utf-8"))
         self.assertFalse(LEGACY_IN_TEMPLATE.exists())
 
     def test_legacy_compatibility_is_thin(self):
@@ -25,12 +25,12 @@ class AgentRelayContractTests(unittest.TestCase):
         public_documents = (
             ROOT / "README.md",
             ROOT / "README.zh-CN.md",
-            ROOT / "docs/AGENT_RELAY_USAGE.md",
-            ROOT / "docs/AGENT_RELAY_USAGE.en-US.md",
+            ROOT / "docs/AGENT_RELAY_AUTO_USAGE.md",
+            ROOT / "docs/AGENT_RELAY_AUTO_USAGE.en-US.md",
         )
         for document in public_documents:
             text = document.read_text(encoding="utf-8")
-            self.assertIn("$agent-relay", text, document)
+            self.assertIn("$agent-relay-auto", text, document)
             self.assertNotIn("$project-role-workflow", text, document)
 
     def test_knowledge_index_is_present_in_all_template_variants(self):
@@ -59,7 +59,7 @@ class AgentRelayContractTests(unittest.TestCase):
 
     def test_automated_runner_contract_is_mirrored(self):
         canonical = CANONICAL / "references/runner.md"
-        mirror = CANONICAL / "assets/project-template/shared/.agents/skills/agent-relay/references/runner.md"
+        mirror = CANONICAL / "assets/project-template/shared/.agents/skills/agent-relay-auto/references/runner.md"
         self.assertTrue(canonical.is_file())
         self.assertTrue(mirror.is_file())
         self.assertEqual(canonical.read_text(encoding="utf-8"), mirror.read_text(encoding="utf-8"))

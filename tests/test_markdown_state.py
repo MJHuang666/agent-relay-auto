@@ -8,12 +8,12 @@ from tests.shared_dot_agents_skill_loader import load_module
 markdown_state = load_module(
     "markdown_state",
     Path(__file__).resolve().parents[1]
-    / "shared/.agents/skills/agent-relay/scripts/agent_relay_runtime/markdown_state.py",
+    / "shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime/markdown_state.py",
 )
 workflow_state = load_module(
     "workflow_state_compat",
     Path(__file__).resolve().parents[1]
-    / "shared/.agents/skills/agent-relay/scripts/workflow_state.py",
+    / "shared/.agents/skills/agent-relay-auto/scripts/workflow_state.py",
 )
 
 

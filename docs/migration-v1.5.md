@@ -1,29 +1,29 @@
-# Agent Relay v1.5 migration / v1.5 迁移
+# Agent Relay Auto v1.5 migration / v1.5 迁移
 
-v1.5 renames the public Skill and project directory from `project-role-workflow` to `agent-relay`. It keeps one thin legacy redirect until v2.0; the canonical implementation is now `.agents/skills/agent-relay/`.
+v1.5 renames the public Skill and project directory from `project-role-workflow` to `agent-relay-auto`. It keeps one thin legacy redirect until v2.0; the canonical implementation is now `.agents/skills/agent-relay-auto/`.
 
-v1.5 将公开 Skill 与项目目录从 `project-role-workflow` 更名为 `agent-relay`。在 v2.0 前保留一个薄的旧名称跳转层；唯一完整实现为 `.agents/skills/agent-relay/`。
+v1.5 将公开 Skill 与项目目录从 `project-role-workflow` 更名为 `agent-relay-auto`。在 v2.0 前保留一个薄的旧名称跳转层；唯一完整实现为 `.agents/skills/agent-relay-auto/`。
 
 ## Safe order / 安全顺序
 
 1. Stop or explicitly pause the active writer session. Do not migrate while a foreign writer is running.
 2. Commit or otherwise preserve the current repository state before changing files.
 3. Install the new canonical Skill, then update project instructions and project Skill.
-4. Open a fresh Agent session and run `$agent-relay continue` / `$agent-relay 继续` in read-only recovery mode first.
+4. Open a fresh Agent session and run `$agent-relay-auto continue` / `$agent-relay-auto 继续` in read-only recovery mode first.
 5. Only after state, participant, revision, and delivery evidence match, register a new writer session.
 
 ## Global and project Skill / 全局与项目 Skill
 
-- Back up a personal v1.4 `project-role-workflow` Skill before replacing it with personal `agent-relay`.
-- Replace a project’s complete `.agents/skills/project-role-workflow/` directory with `.agents/skills/agent-relay/`; do not keep two full implementations.
-- A legacy command can resolve through `compat/project-role-workflow/SKILL.md`, but all new instructions, prompts, and task records must use `$agent-relay`.
-- Update root `AGENTS.md` marker blocks and Cursor rules/commands to point to `agent-relay`. Existing project-specific instructions must be merged, never overwritten.
+- Back up a personal v1.4 `project-role-workflow` Skill before replacing it with personal `agent-relay-auto`.
+- Replace a project’s complete `.agents/skills/project-role-workflow/` directory with `.agents/skills/agent-relay-auto/`; do not keep two full implementations.
+- A legacy command can resolve through `compat/project-role-workflow/SKILL.md`, but all new instructions, prompts, and task records must use `$agent-relay-auto`.
+- Update root `AGENTS.md` marker blocks and Cursor rules/commands to point to `agent-relay-auto`. Existing project-specific instructions must be merged, never overwritten.
 
 ## Lock transition / 锁迁移
 
-The helper writes `agent-relay.lock` (or `.agent-relay.lock` outside Git). It still recognizes the old `project-role-workflow.lock` to prevent concurrent writes. If both exist, it deliberately refuses automatic release; inspect the two owners and obtain explicit authorization before resolving the conflict.
+The helper writes `agent-relay-auto.lock` (or `.agent-relay-auto.lock` outside Git). It still recognizes the old `project-role-workflow.lock` to prevent concurrent writes. If both exist, it deliberately refuses automatic release; inspect the two owners and obtain explicit authorization before resolving the conflict.
 
-辅助脚本会写入 `agent-relay.lock`（Git 外为 `.agent-relay.lock`），同时识别旧 `project-role-workflow.lock`，避免并发写入。如果两者同时存在，脚本会拒绝自动释放；必须检查两个持有者，并在明确授权后解决冲突。
+辅助脚本会写入 `agent-relay-auto.lock`（Git 外为 `.agent-relay-auto.lock`），同时识别旧 `project-role-workflow.lock`，避免并发写入。如果两者同时存在，脚本会拒绝自动释放；必须检查两个持有者，并在明确授权后解决冲突。
 
 ## Uncommitted-state handoff package / 未提交状态交接包
 

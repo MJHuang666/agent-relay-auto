@@ -8,7 +8,7 @@ from pathlib import Path
 
 SCRIPT = (
     Path(__file__).resolve().parents[1]
-    / "shared/.agents/skills/agent-relay/scripts/relay_state.py"
+    / "shared/.agents/skills/agent-relay-auto/scripts/relay_state.py"
 )
 
 
