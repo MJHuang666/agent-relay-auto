@@ -211,3 +211,25 @@ class StateStore:
             )
             status = str(state.get("status"))
             return TransitionResult(key.task_id, status, status, key.expected_revision, new_revision)
+
+    def finish_run(self, task_id: str, run_id: str, exit_code: int) -> TransitionResult:
+        with _state_lock(self.repo, "finish-run"):
+            path, text, state = self._read_task(task_id)
+            if state.get("run_id") != run_id:
+                raise StateStoreError(f"run identity mismatch: expected {run_id}, actual {state.get('run_id')}")
+            input_revision = int(state.get("revision"))
+            output_revision = input_revision + 1
+            self._write_state(
+                path,
+                text,
+                {
+                    ("run_status",): "finished",
+                    ("run_exit_code",): exit_code,
+                    ("run_id",): None,
+                    ("writer_session",): None,
+                    ("revision",): output_revision,
+                    ("updated_at",): now_iso(),
+                },
+            )
+            status = str(state.get("status"))
+            return TransitionResult(task_id, status, status, input_revision, output_revision)
