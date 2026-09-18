@@ -48,4 +48,3 @@ class OpenCodeAdapter:
 
     def parse_event(self, line: str) -> dict[str, object]:
         return json.loads(line)
-

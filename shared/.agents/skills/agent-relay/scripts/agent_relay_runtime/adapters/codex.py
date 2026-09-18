@@ -59,4 +59,3 @@ class CodexAdapter:
     def resume_command(self, request: LaunchRequest, session_id: str) -> tuple[str, ...]:
         prompt = f"Resume task {request.task_id} as {request.role} from the latest checkpoint."
         return tuple(self._command("exec", "resume", session_id, "--json", "--model", request.model, prompt))
-
