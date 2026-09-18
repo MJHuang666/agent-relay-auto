@@ -22,6 +22,8 @@ class RunnerInstallerTests(unittest.TestCase):
             self.assertTrue((root / "data/versions/2.0.0/scripts/agent_relay_runner.py").is_file())
             self.assertTrue((root / "launch-agents/com.agent-relay-auto.runner.plist").is_file())
             self.assertTrue((root / "data/current").is_symlink())
+            plist = (root / "launch-agents/com.agent-relay-auto.runner.plist").read_text(encoding="utf-8")
+            self.assertNotIn("~/", plist)
 
     def test_non_darwin_install_is_rejected_but_dry_run_describes_it(self):
         with tempfile.TemporaryDirectory() as directory:

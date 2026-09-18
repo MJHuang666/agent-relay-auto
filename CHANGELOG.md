@@ -2,6 +2,15 @@
 
 All notable changes to Agent Relay Auto are documented here. Project Role Workflow and Agent Relay are legacy names retained only for migration history.
 
+## [1.6.2] - 2026-09-19
+
+- Added a mandatory conversational configuration gate before Runner installation or startup.
+- Added complete participant, model, and provider-specific reasoning settings for Planner, Implementer, and Reviewer.
+- Connected the service entry to a real per-project Adapter factory and role router for Codex, OpenCode, and Claude Code.
+- Corrected Codex app-server model discovery initialization and OpenCode model-list parsing against the locally installed CLIs.
+- Added configuration-aware Runner start/status controls and absolute launchd log paths.
+- Prevented missing policies, placeholder models, unsupported automatic tools, and participant mismatches from reaching launchctl or an Agent process.
+
 ## [1.6.1] - 2026-09-19
 
 - Renamed the automatic edition's public Skill, commands, project-local paths, documentation, and release package from `agent-relay` to `agent-relay-auto`.

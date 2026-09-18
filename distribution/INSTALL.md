@@ -1,10 +1,10 @@
 # Agent Relay Auto Skill Pack
 
-版本：1.6.1
+版本：1.6.2
 
 这个安装包把多智能体协作所需的 Skill、共享状态模板、状态安全脚本和工具入口放在一起。安装后，Planner、Implementer、Reviewer 通过目标仓库中的 `docs/agent/` 交接；对话框只负责触发命令，不再承担唯一上下文。正式 ZIP 与 SHA-256 校验文件应作为 GitHub Release 附件发布，而不是提交到源码仓库。
 
-安装全局 Skill 后，可以在空白仓库中说 `$agent-relay-auto 初始化当前仓库` 或 `$agent-relay-auto initialize this repository`。Skill 会先询问中文/英文，再从内置 `assets/project-template/` 安装对应语言模板，询问三个角色的 Agent/model/reasoning 配置，并单独确认是否安装 macOS launchd Runner。
+安装全局 Skill 后，可以在空白仓库中说 `$agent-relay-auto 初始化当前仓库` 或 `$agent-relay-auto initialize this repository`。Skill 会先询问中文/英文，再从内置 `assets/project-template/` 安装对应语言模板，通过对话完成三个角色的 participant/Agent/model/reasoning 配置。只有配置检查通过后，才会单独确认是否安装并启动 macOS launchd Runner。
 
 初始化后，`继续` 和 `continue` 等价。项目语言会约束后续选项、对话、需求、计划、执行记录、审查与验收报告。Implementer 在修改产品代码前还会要求用户明确选择本次任务是否使用子代理。
 

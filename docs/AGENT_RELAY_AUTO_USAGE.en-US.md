@@ -1,6 +1,6 @@
 # Agent Relay Auto Usage Guide
 
-This guide covers `agent-relay-auto` Skill v1.6.1: initialization, role handoff, Agent replacement, pause and recovery, state inspection, and task acceptance.
+This guide covers `agent-relay-auto` Skill v1.6.2: initialization, role handoff, Agent replacement, pause and recovery, state inspection, and task acceptance.
 
 ## Initialize a repository
 
@@ -145,7 +145,11 @@ See the [Skill instructions](../shared/.agents/skills/agent-relay-auto/SKILL.md)
 
 Initialization shows the defaults: three rework rounds, one automatic replan, one Agent failure retry, same-role fallback disabled, and `balanced` cost control (warn after run 8 and block new runs after run 12). Existing configuration displays all Planner, Implementer, and Reviewer Agent/model/reasoning tuples with Confirm or Modify choices.
 
-The macOS launchd Runner is installed only after explicit confirmation. Without confirmation the project stays in `manual` mode. Different projects run independently; the first version executes one active task at a time within each project.
+The Skill must first confirm each role's `participant_id`, Agent, model, and reasoning setting in the conversation. Codex uses `reasoning_effort`, OpenCode uses `variant`, and Claude Code uses `effort`. If model discovery is unavailable, the user may provide a stable model ID, which remains pending until its first launch validation.
+
+After configuration, the Skill shows one three-role summary for confirmation and separately asks whether to install and start the Runner. It may install the macOS launchd Runner, register the project, and start the service only when the user explicitly approves and `configure_runtime.py inspect` returns `ready_to_start: true`. A missing configuration never sends the user looking for an “Adapter factory.”
+
+Automatic mode currently supports the non-interactive Codex, OpenCode, and Claude Code adapters. Other Agents continue through the manual relay. Different projects run independently; the first version executes one active task at a time within each project.
 
 ```text
 $agent-relay-auto runner status

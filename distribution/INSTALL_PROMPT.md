@@ -11,8 +11,8 @@
 7. 安装后检查 Markdown 本地链接、Skill frontmatter，并在 Python 3 可用时运行 `workflow_state.py --repo <target> status`；再启动或指导用户启动一个全新会话，只输入“继续”进行真实入口验证。
 8. 最终报告：安装了哪些文件、合并了哪些既有规则、保留了哪些项目状态、哪些工具入口已验证、哪些仍待验证。
 
-9. 初始化时先让用户选择语言，再显示三个角色的 Agent/model/reasoning 配置和自动策略默认值：返修 3、重规划 1、失败重试 1、备用 Agent 默认关闭、成本控制 balanced。已有配置只能选择确认或修改。
-10. 单独询问是否安装并启动 macOS launchd Runner。未确认时保持 manual mode；确认时使用版本化 `setup_runner.py`，不要直接让 launchd 指向会被升级覆盖的 Skill 源目录。
+9. 初始化时先让用户选择语言，再通过对话逐个配置三个角色的 participant ID、Agent、模型和工具专用推理参数，并显示自动策略默认值：返修 3、重规划 1、失败重试 1、备用 Agent 默认关闭、成本控制 balanced。已有完整配置只能选择确认或修改；存在缺失、`default` 模型或不支持自动运行的 Agent 时必须修改。
+10. 展示三角色最终摘要并写入配置，再运行完整性检查。只有检查通过后才能单独询问是否安装并启动 macOS launchd Runner。未确认时保持 manual mode；确认时使用版本化 `setup_runner.py`，再用 `runnerctl.py start` 注册项目并启动，不要直接让 launchd 指向会被升级覆盖的 Skill 源目录。
 11. Runner 的 `.agent-relay-auto/` 运行日志必须写入 `.gitignore`。Reviewer 证据和 Planner 最终报告落在任务目录；`DONE` 不代表 merge、push、release 或 deploy。
 
 初始化新仓库时必须先让用户选择中文（`zh-CN`）或 English（`en-US`），再询问角色工具。后续交流和新建任务文档使用该语言。Implementer 实施前必须让用户选择 `USE` 或 `DO_NOT_USE` 子代理。

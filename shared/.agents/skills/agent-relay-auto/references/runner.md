@@ -15,3 +15,11 @@ PLANNING → IMPLEMENTING → REVIEWING → REPORTING → DONE
 ```
 
 Reviewer `PASS` requires a non-empty evidence file. Planner reporting requires the final report sections: goal, delivery, tests, Reviewer evidence, limitations, usage, and explicitly unexecuted merge/push/release/deploy actions.
+
+## Configuration Gate
+
+The Runner is the consumer of role configuration, not the place where users repair it. Before installation or startup, the Skill must complete the conversational configuration and write `docs/agent/automation-policy.yaml` with an explicit `participant_id`, Agent, model, and provider-specific reasoning value for Planner, Implementer, and Reviewer.
+
+`configure_runtime.py inspect` must report `complete: true`. `runnerctl.py start` performs the same validation before it registers the project or invokes launchctl. Missing policies, placeholder models, unsupported automatic tools, and participant mismatches stop with a role-specific message.
+
+The service entry uses the project Adapter factory in both `--once` and persistent modes. The factory creates a role router for Codex, OpenCode, and Claude Code, and the router applies the model and reasoning setting selected during initialization. Users never configure an “Adapter factory” directly.

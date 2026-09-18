@@ -19,6 +19,7 @@ for required_file in \
   shared/.agents/skills/agent-relay-auto/scripts/runnerctl.py \
   shared/.agents/skills/agent-relay-auto/scripts/configure_runtime.py \
   shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runner.py \
+  shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime/adapters/factory.py \
   shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime/state_store.py \
   shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime/runner.py \
   shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime/recovery.py \
@@ -34,7 +35,8 @@ for required_file in \
   shared/docs/agent/tasks/_template/STATE.md \
   codex/prompts/replace-agent.md \
   cursor/.cursor/commands/replace-agent.md \
-  tests/test_workflow_state.py; do
+  tests/test_workflow_state.py \
+  tests/test_runner_service.py; do
   test -f "$required_file" || fail "missing required file: $required_file"
 done
 

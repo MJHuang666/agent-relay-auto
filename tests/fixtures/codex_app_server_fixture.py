@@ -2,7 +2,22 @@
 import json
 import sys
 
+initialized = False
+
 for line in sys.stdin:
     request = json.loads(line)
-    if request.get("method") == "model/list":
-        print(json.dumps({"id": request.get("id"), "result": {"data": [{"id": "gpt-test", "display_name": "GPT Test"}]}}), flush=True)
+    method = request.get("method")
+    if method == "initialize":
+        print(json.dumps({"id": request.get("id"), "result": {"serverInfo": {"name": "fixture", "version": "1"}}}), flush=True)
+    elif method == "initialized":
+        initialized = True
+    elif method == "model/list" and initialized:
+        print(
+            json.dumps(
+                {
+                    "id": request.get("id"),
+                    "result": {"data": [{"id": "gpt-test", "displayName": "GPT Test"}]},
+                }
+            ),
+            flush=True,
+        )

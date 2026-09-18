@@ -23,6 +23,7 @@ class CliAdapterTests(unittest.TestCase):
         command = adapter.build_command(self.request())
         self.assertIn("exec", command)
         self.assertIn("--json", command)
+        self.assertIn('model_reasoning_effort="high"', command)
 
     def test_opencode_preserves_provider_model_and_resume_session(self):
         fixture = Path(__file__).resolve().parent / "fixtures/opencode_fixture.py"
@@ -30,6 +31,8 @@ class CliAdapterTests(unittest.TestCase):
         self.assertEqual(adapter.list_models(), ("openai/gpt-test", "anthropic/claude-test"))
         command = adapter.build_command(self.request("openai/gpt-test"))
         self.assertIn("run", command)
+        self.assertIn("--variant", command)
+        self.assertIn("high", command)
         resume = adapter.resume_command(self.request(), "session-1")
         self.assertIn("--session", resume)
 

@@ -90,7 +90,11 @@ Each red flag means stop writing and follow the read-only or repair path in the 
 
 ## Automated Runner
 
-During initialization, after language and the three role bindings are selected, show the automation policy and ask for explicit Runner installation confirmation. If confirmed, use the bundled `setup_runner.py` and register the repository; otherwise keep `mode: manual` and continue the file-based workflow.
+During initialization, after language and the three role bindings are selected, inspect runtime configuration with `scripts/configure_runtime.py inspect --repo <repo>`. Never install, register, or start the Runner while any role has a missing participant ID, unsupported automatic Agent, `default`/placeholder model, missing reasoning setting, or another reported configuration problem.
+
+When configuration is absent or incomplete, guide the user through Planner, Implementer, and Reviewer in the conversation. For each role, show the selected Agent, use `configure_runtime.py discover --tool <tool-id>` to show models when discovery is available, allow a stable model ID when discovery is unavailable, and ask for the tool-specific reasoning setting (`reasoning_effort` for Codex, `variant` for OpenCode, `effort` for Claude Code). Codex, OpenCode, and Claude Code are the automatic adapters; other registered tools remain manual-only until a verified non-interactive adapter exists.
+
+Show one final three-role summary and obtain confirmation, then ask separately whether to install and start the Runner. Apply the confirmed non-secret JSON with that answer as `runner_confirmed`, then inspect again. When installation was accepted, require `ready_to_start: true` before installing the versioned runtime with `setup_runner.py` and starting/registering the project with `runnerctl.py start --repo <repo>`. A failure at any gate remains visible and stops startup; do not expose “Adapter factory” as a user configuration step. Declining installation writes or keeps `mode: manual` and continues the file-based workflow.
 
 In automatic mode, Planner remains the user-facing decision entry point. The Runner may start Planner, Implementer, Reviewer, and the final Planner reporting pass through their configured non-interactive adapters. A decision request enters `WAITING_USER` and sends a notification without stealing focus. Reviewer evidence is required before `PASS`; Planner's valid final report is required before `DONE`.
 

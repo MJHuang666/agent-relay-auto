@@ -140,7 +140,7 @@ This is the most stable mode today. The user opens the Agent assigned to the cur
 
 The automatic edition includes the Runner, runtime configuration, logging, and recovery design. Its goal is to start the next role after a valid state transition and move to `DONE` only after the Reviewer writes complete evidence. Initialization can configure retry, re-planning, cost warnings, and whether same-role backup Agents are allowed.
 
-In the current release, the automatic Runner is still experimental and some runtime adapters and control commands are under repair. It must not be presented as a production-ready unattended service. Read the verification report before enabling it; ambiguity, credentials, permissions, and high-risk external operations should enter `BLOCKED` and return to the user.
+The current release connects configuration validation, role-based Adapter routing, and launchd service controls. The full unattended loop with real models remains a preview until each configured Agent CLI passes its first-launch validation. Read the verification report before enabling it; ambiguity, credentials, permissions, and high-risk external operations should enter `BLOCKED` and return to the user.
 
 In both modes, the Runner has no authority to merge, push, release, deploy, or write to production.
 

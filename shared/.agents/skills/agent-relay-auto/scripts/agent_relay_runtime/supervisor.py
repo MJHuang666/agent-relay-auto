@@ -84,11 +84,23 @@ class ProjectSupervisor:
             return SupervisorDecision("waiting", str(task_id))
         participant = state.get("current_participant") or f"{role}-main"
         run_id = f"run-{uuid.uuid4().hex[:12]}"
+        request = LaunchRequest(
+            self.repo,
+            str(task_id),
+            role,
+            str(participant),
+            str(state.get("model", "default")),
+            state.get("reasoning"),
+            run_id,
+            int(state["revision"]),
+        )
+        capabilities_for = getattr(self.adapter, "capabilities_for", None)
+        capabilities = capabilities_for(request) if capabilities_for is not None else self.adapter.capabilities()
+        if not capabilities.noninteractive:
+            return SupervisorDecision("blocked", str(task_id), run_id)
+        command = self.adapter.build_command(request)
         claim = ClaimKey(str(task_id), int(state["revision"]), str(participant), int(state.get("stage_round", 1)))
         result = self.store.claim(claim, run_id)
-        request = LaunchRequest(self.repo, str(task_id), role, str(participant), str(state.get("model", "default")), state.get("reasoning"), run_id, result.input_revision)
-        if not self.adapter.capabilities().noninteractive:
-            return SupervisorDecision("blocked", str(task_id), run_id)
-        managed = self.process_manager.start(self.adapter.build_command(request), self.repo, run_id)
+        managed = self.process_manager.start(command, self.repo, run_id)
         self._active[str(task_id)] = managed
         return SupervisorDecision("started", str(task_id), run_id)

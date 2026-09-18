@@ -48,14 +48,16 @@ class RunnerInstaller:
 
     def _plist(self) -> str:
         runner = self.current_path / "scripts/agent_relay_runner.py"
+        log_root = self.paths.launch_agents.parent / "Logs" / "AgentRelay"
+        registry = self.paths.config_root / "projects.json"
         return f'''<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>Label</key><string>com.agent-relay-auto.runner</string>
-<key>ProgramArguments</key><array><string>/usr/bin/python3</string><string>{runner}</string></array>
+<key>ProgramArguments</key><array><string>/usr/bin/python3</string><string>{runner}</string><string>--registry</string><string>{registry}</string></array>
 <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
-<key>StandardOutPath</key><string>~/Library/Logs/AgentRelay/runner.log</string>
-<key>StandardErrorPath</key><string>~/Library/Logs/AgentRelay/runner.error.log</string>
+<key>StandardOutPath</key><string>{log_root / 'runner.log'}</string>
+<key>StandardErrorPath</key><string>{log_root / 'runner.error.log'}</string>
 </dict></plist>
 '''
 
@@ -82,6 +84,7 @@ class RunnerInstaller:
             self.current_path.unlink()
         self.current_path.symlink_to(self.version_path)
         self.paths.launch_agents.mkdir(parents=True, exist_ok=True)
+        (self.paths.launch_agents.parent / "Logs" / "AgentRelay").mkdir(parents=True, exist_ok=True)
         (self.paths.launch_agents / "com.agent-relay-auto.runner.plist").write_text(self._plist(), encoding="utf-8")
         return {"status": "installed", "version": self.version, "manifest_entries": len(manifest)}
 

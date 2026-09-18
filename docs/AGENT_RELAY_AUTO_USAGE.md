@@ -1,6 +1,6 @@
 # Agent Relay Auto 使用手册
 
-本文对应 `agent-relay-auto` Skill v1.6.1，说明初始化、任务接力、Agent 更换、暂停恢复、状态查询和最终验收。
+本文对应 `agent-relay-auto` Skill v1.6.2，说明初始化、任务接力、Agent 更换、暂停恢复、状态查询和最终验收。
 
 ## 1. 初始化仓库
 
@@ -175,7 +175,11 @@ Codex、Cursor、DeepSeek Harness 和 OpenCode 共用根 `AGENTS.md`、`docs/age
 
 初始化时会显示自动策略默认值：返修 3 次、自动重规划 1 次、Agent 失败重试 1 次、同角色备用 Agent 默认关闭、成本控制 `balanced`（第 8 次提醒，第 12 次停止新的 run）。已有配置会显示 Planner、Implementer、Reviewer 的 Agent、模型和推理强度，选择“确认”或“修改”。
 
-只有用户明确确认后才安装 macOS launchd Runner；否则保持 `manual` 模式。自动模式下不同项目独立并行，同一项目第一版只运行一个活动任务。
+Skill 必须先在对话中逐个确认三个角色的 `participant_id`、Agent、模型和推理参数。Codex 使用 `reasoning_effort`，OpenCode 使用 `variant`，Claude Code 使用 `effort`。发现不到模型时允许用户输入稳定模型 ID，但会标记为首次启动待验证。
+
+配置完成后，Skill 会展示三角色摘要供用户确认，并单独询问是否安装和启动；只有用户明确同意且 `configure_runtime.py inspect` 返回 `ready_to_start: true`，才会安装 macOS launchd Runner、注册当前项目并启动服务。缺少配置时不会让用户自行寻找或配置所谓的 Adapter 工厂。
+
+自动模式目前支持 Codex、OpenCode 和 Claude Code 的非交互适配器；其他 Agent 继续使用手动接力。自动模式下不同项目独立并行，同一项目第一版只运行一个活动任务。
 
 ```text
 $agent-relay-auto Runner 状态

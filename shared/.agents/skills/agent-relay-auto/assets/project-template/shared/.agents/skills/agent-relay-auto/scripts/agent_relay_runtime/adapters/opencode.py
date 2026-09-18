@@ -35,12 +35,16 @@ class OpenCodeAdapter:
         return AdapterCapabilities(True, True, True, True, True)
 
     def list_models(self) -> tuple[str, ...]:
-        result = subprocess.run(self._command("models", "--verbose"), capture_output=True, text=True, check=True)
-        return tuple(line.strip() for line in result.stdout.splitlines() if "/" in line)
+        result = subprocess.run(self._command("models"), capture_output=True, text=True, check=True)
+        return tuple(line.strip() for line in result.stdout.splitlines() if line.strip().count("/") == 1)
 
     def build_command(self, request: LaunchRequest) -> tuple[str, ...]:
         prompt = f"Read docs/agent/tasks/{request.task_id}/STATE.md and perform the {request.role} stage."
-        return tuple(self._command("run", "--format", "json", "--model", request.model, prompt))
+        arguments = ["run", "--format", "json", "--model", request.model]
+        if request.reasoning:
+            arguments.extend(["--variant", request.reasoning])
+        arguments.append(prompt)
+        return tuple(self._command(*arguments))
 
     def resume_command(self, request: LaunchRequest, session_id: str) -> tuple[str, ...]:
         prompt = f"Resume task {request.task_id} as {request.role} from the latest checkpoint."

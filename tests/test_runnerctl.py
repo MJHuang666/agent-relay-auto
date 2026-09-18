@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from tests.shared.agent_relay_runtime_loader import load_runtime_module
 
@@ -14,6 +15,79 @@ class RunnerCtlTests(unittest.TestCase):
             result = runnerctl.command_status(Path(directory), dry_run=True)
             self.assertEqual(result["status"], "dry-run")
             self.assertIn("actions", result)
+
+    def test_start_validates_configuration_registers_project_and_loads_service(self):
+        policy = """mode: automatic
+roles:
+  planner:
+    participant_id: planner-codex
+    agent: codex
+    model: gpt-test
+    reasoning_effort: high
+  implementer:
+    participant_id: implementer-opencode
+    agent: opencode
+    model: openai/gpt-test
+    variant: high
+  reviewer:
+    participant_id: reviewer-claude
+    agent: claude-code
+    model: claude-test
+    effort: high
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = root / "repo"
+            (repo / "docs/agent").mkdir(parents=True)
+            (repo / "docs/agent/automation-policy.yaml").write_text(policy, encoding="utf-8")
+            plist = root / "LaunchAgents/com.agent-relay-auto.runner.plist"
+            plist.parent.mkdir(parents=True)
+            plist.write_text("plist", encoding="utf-8")
+            calls = []
+
+            def run(command, **kwargs):
+                calls.append(tuple(command))
+                if "print" in command:
+                    return SimpleNamespace(returncode=113, stdout="", stderr="not loaded")
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+            controller = runnerctl.RunnerController(
+                registry_path=root / "config/projects.json",
+                plist_path=plist,
+                uid=501,
+                run_command=run,
+            )
+            result = controller.start(repo)
+            self.assertEqual(result["status"], "started")
+            self.assertTrue(any("bootstrap" in command for command in calls))
+            self.assertTrue(any("kickstart" in command for command in calls))
+            projects = (root / "config/projects.json").read_text(encoding="utf-8")
+            self.assertIn(str(repo), projects)
+
+    def test_start_rejects_incomplete_role_configuration_before_launchctl(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = root / "repo"
+            (repo / "docs/agent").mkdir(parents=True)
+            (repo / "docs/agent/automation-policy.yaml").write_text(
+                "mode: automatic\nroles:\n  planner:\n    agent: codex\n",
+                encoding="utf-8",
+            )
+            calls = []
+
+            def run(command, **kwargs):
+                calls.append(tuple(command))
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+            controller = runnerctl.RunnerController(
+                registry_path=root / "config/projects.json",
+                plist_path=root / "LaunchAgents/com.agent-relay-auto.runner.plist",
+                uid=501,
+                run_command=run,
+            )
+            with self.assertRaisesRegex(runnerctl.RunnerControlError, "planner"):
+                controller.start(repo)
+            self.assertEqual(calls, [])
 
 
 if __name__ == "__main__":
