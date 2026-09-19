@@ -29,7 +29,7 @@ class FakeAdapter:
     def capabilities(self) -> AdapterCapabilities:
         return AdapterCapabilities(True, False, False, False, True)
 
-    def build_command(self, request: LaunchRequest) -> tuple[str, ...]:
+    def build_command(self, request: LaunchRequest, context=None) -> tuple[str, ...]:
         return (self.python, str(self.fixture), "--sleep", str(self.sleep))
 
     def on_result(self, supervisor, task_id: str, run_id: str, exit_code: int) -> None:

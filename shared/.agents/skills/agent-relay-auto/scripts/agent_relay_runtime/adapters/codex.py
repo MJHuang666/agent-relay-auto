@@ -11,7 +11,7 @@ import uuid
 from pathlib import Path
 
 try:
-    from .base import AdapterCapabilities, LaunchRequest, ModelOption
+    from .base import AdapterCapabilities, LaunchContext, LaunchRequest, ModelOption, build_role_prompt
 except ImportError:
     import importlib.util
 
@@ -24,7 +24,9 @@ except ImportError:
     _spec.loader.exec_module(_base)
     AdapterCapabilities = _base.AdapterCapabilities
     LaunchRequest = _base.LaunchRequest
+    LaunchContext = _base.LaunchContext
     ModelOption = _base.ModelOption
+    build_role_prompt = _base.build_role_prompt
 
 
 class CodexAdapter:
@@ -119,11 +121,12 @@ class CodexAdapter:
             if process.stderr is not None:
                 process.stderr.close()
 
-    def build_command(self, request: LaunchRequest) -> tuple[str, ...]:
-        prompt = f"Read docs/agent/tasks/{request.task_id}/STATE.md and perform the {request.role} stage."
+    def build_command(self, request: LaunchRequest, context: LaunchContext) -> tuple[str, ...]:
+        prompt = build_role_prompt(request, context)
         arguments = [
             "exec",
             "--json",
+            "--ephemeral",
             "--skip-git-repo-check",
             "--dangerously-bypass-approvals-and-sandbox",
             "--model",

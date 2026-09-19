@@ -46,6 +46,23 @@ class RunStore:
         (path / "heartbeat.json").touch()
         return path
 
+    def write_launch_context(self, run_id: str, context: Mapping[str, object]) -> Path:
+        path = self._run_path(run_id) / "launch-context.json"
+        payload = json.dumps(dict(context), ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+        descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, path)
+        finally:
+            try:
+                os.unlink(temporary)
+            except FileNotFoundError:
+                pass
+        return path
+
     def _rotate(self, path: Path, incoming_size: int) -> None:
         if not path.exists() or path.stat().st_size + incoming_size <= self.max_log_bytes:
             return

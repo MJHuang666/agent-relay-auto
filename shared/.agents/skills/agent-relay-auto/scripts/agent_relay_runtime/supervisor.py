@@ -24,7 +24,7 @@ try:
     from .process_manager import ManagedProcess, ProcessManager
     from .run_store import RunStore
     from .state_store import ClaimKey, StateStore
-    from .adapters.base import LaunchRequest
+    from .adapters.base import LaunchContext, LaunchRequest
 except ImportError:
     _process = _sibling("process_manager")
     _runs = _sibling("run_store")
@@ -42,6 +42,7 @@ except ImportError:
     ClaimKey = _state.ClaimKey
     StateStore = _state.StateStore
     LaunchRequest = _base.LaunchRequest
+    LaunchContext = _base.LaunchContext
 
 
 @dataclass(frozen=True)
@@ -117,21 +118,32 @@ class ProjectSupervisor:
         capabilities = capabilities_for(request) if capabilities_for is not None else self.adapter.capabilities()
         if not capabilities.noninteractive:
             return SupervisorDecision("blocked", str(task_id), run_id)
-        command = self.adapter.build_command(request)
         claim = ClaimKey(str(task_id), int(state["revision"]), str(participant), int(state.get("stage_round", 1)))
         result = self.store.claim(claim, run_id)
-        self.run_store.create(
-            {
-                "task_id": str(task_id),
-                "role": role,
-                "participant_id": str(participant),
-                "agent": type(self.adapter).__name__,
-                "model": request.model,
-                "run_id": run_id,
-                "start_revision": result.output_revision,
-                "status": "active",
-            }
-        )
-        managed = self.process_manager.start(command, self.repo, run_id)
+        run_created = False
+        try:
+            _, _, claimed_state = self.store._read_task(str(task_id))
+            context = LaunchContext.from_state(request, claimed_state)
+            self.run_store.create(
+                {
+                    "task_id": str(task_id),
+                    "role": role,
+                    "participant_id": str(participant),
+                    "agent": type(self.adapter).__name__,
+                    "model": request.model,
+                    "run_id": run_id,
+                    "start_revision": result.output_revision,
+                    "status": "active",
+                }
+            )
+            run_created = True
+            self.run_store.write_launch_context(run_id, context.as_dict())
+            command = self.adapter.build_command(request, context)
+            managed = self.process_manager.start(command, self.repo, run_id)
+        except Exception:
+            if run_created:
+                self.run_store.finish(run_id, 1, None)
+            self.store.finish_run(str(task_id), run_id, 1)
+            raise
         self._active[str(task_id)] = managed
         return SupervisorDecision("started", str(task_id), run_id)

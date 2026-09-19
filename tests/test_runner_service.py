@@ -62,9 +62,17 @@ class RunnerServiceTests(unittest.TestCase):
             router = factory.create_adapter_factory()(repo)
             implementer = base.LaunchRequest(repo, "TASK-001", "implementer", "implementer-opencode", "ignored", None, "run-2", 1)
             reviewer = base.LaunchRequest(repo, "TASK-001", "reviewer", "reviewer-claude", "ignored", None, "run-3", 1)
+            implementer_context = base.LaunchContext.from_state(implementer, {
+                "status": "IMPLEMENTING", "revision": 2, "stage_round": 1,
+                "writer_session": "run-2", "plan_version": 1, "subagent_policy": "DO_NOT_USE",
+            })
+            reviewer_context = base.LaunchContext.from_state(reviewer, {
+                "status": "REVIEWING", "revision": 2, "stage_round": 1,
+                "writer_session": "run-3", "plan_version": 1, "subagent_policy": "DO_NOT_USE",
+            })
 
-            implementer_command = router.build_command(implementer)
-            reviewer_command = router.build_command(reviewer)
+            implementer_command = router.build_command(implementer, implementer_context)
+            reviewer_command = router.build_command(reviewer, reviewer_context)
 
             self.assertFalse(router.is_background_role("planner"))
             self.assertTrue(router.is_background_role("implementer"))
@@ -93,8 +101,12 @@ class RunnerServiceTests(unittest.TestCase):
             repo = self.make_repo(directory)
             router = factory.create_adapter_factory()(repo)
             request = base.LaunchRequest(repo, "TASK-001", "implementer", "implementer-other", "ignored", None, "run-1", 1)
+            context = base.LaunchContext.from_state(request, {
+                "status": "IMPLEMENTING", "revision": 2, "stage_round": 1,
+                "writer_session": "run-1", "plan_version": 1, "subagent_policy": "DO_NOT_USE",
+            })
             with self.assertRaisesRegex(factory.AdapterConfigurationError, "implementer-other"):
-                router.build_command(request)
+                router.build_command(request, context)
 
     def test_missing_execution_mode_uses_hybrid_defaults(self):
         with tempfile.TemporaryDirectory() as directory:

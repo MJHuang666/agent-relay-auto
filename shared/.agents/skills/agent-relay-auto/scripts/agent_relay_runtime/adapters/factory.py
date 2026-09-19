@@ -26,7 +26,7 @@ def _load_sibling(name: str):
 
 
 try:
-    from .base import AdapterCapabilities, LaunchRequest
+    from .base import AdapterCapabilities, LaunchContext, LaunchRequest
     from .claude_code import ClaudeCodeAdapter
     from .codex import CodexAdapter
     from .opencode import OpenCodeAdapter
@@ -34,6 +34,7 @@ except ImportError:
     _base = _load_sibling("base")
     AdapterCapabilities = _base.AdapterCapabilities
     LaunchRequest = _base.LaunchRequest
+    LaunchContext = _base.LaunchContext
     ClaudeCodeAdapter = _load_sibling("claude_code").ClaudeCodeAdapter
     CodexAdapter = _load_sibling("codex").CodexAdapter
     OpenCodeAdapter = _load_sibling("opencode").OpenCodeAdapter
@@ -190,9 +191,9 @@ class RoleRoutingAdapter:
         adapter, _ = self._resolved(request)
         return adapter.capabilities()
 
-    def build_command(self, request: LaunchRequest) -> tuple[str, ...]:
+    def build_command(self, request: LaunchRequest, context: LaunchContext) -> tuple[str, ...]:
         adapter, configured = self._resolved(request)
-        return adapter.build_command(configured)
+        return adapter.build_command(configured, context)
 
     def resume_command(self, request: LaunchRequest, session_id: str) -> tuple[str, ...]:
         adapter, configured = self._resolved(request)

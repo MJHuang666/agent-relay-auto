@@ -24,6 +24,7 @@ class RunStoreTests(unittest.TestCase):
                     "start_revision": 4,
                 }
             )
+            context_path = store.write_launch_context("run-001", {"run_id": "run-001", "role": "implementer"})
             store.append("run-001", "stdout", "hello\n")
             store.append("run-001", "stdout", "x" * 200)
             store.finish("run-001", 0, None)
@@ -31,6 +32,7 @@ class RunStoreTests(unittest.TestCase):
             self.assertTrue((run_path / "events.jsonl").is_file())
             self.assertTrue((run_path / "usage.json").is_file())
             self.assertTrue((run_path / "stdout.log.1").is_file())
+            self.assertEqual(json.loads(context_path.read_text(encoding="utf-8"))["run_id"], "run-001")
             usage = json.loads((run_path / "usage.json").read_text(encoding="utf-8"))
             self.assertEqual(usage["status"], "unavailable")
             metadata = json.loads((run_path / "metadata.json").read_text(encoding="utf-8"))

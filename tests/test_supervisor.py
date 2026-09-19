@@ -96,7 +96,7 @@ class SupervisorTests(unittest.TestCase):
             def capabilities(self):
                 return SimpleNamespace(noninteractive=True)
 
-            def build_command(self, request):
+            def build_command(self, request, context):
                 fixture = Path(__file__).resolve().parent / "fixtures/fake_agent_cli.py"
                 return (sys.executable, str(fixture))
 
