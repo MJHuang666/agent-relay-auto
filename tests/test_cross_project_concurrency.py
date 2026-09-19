@@ -28,7 +28,7 @@ STATE = """# Task State
 ```yaml
 task: TASK-001
 title: Demo
-status: PLANNING
+status: IMPLEMENTING
 revision: 1
 stage_round: 1
 run_id: null
@@ -38,8 +38,8 @@ rework_round: 0
 auto_replan_count: 0
 agent_failure_count: 0
 runtime_snapshot_ref: null
-current_role: planner
-current_participant: planner-main
+current_role: implementer
+current_participant: implementer-main
 writer_session: null
 execution: idle
 ```

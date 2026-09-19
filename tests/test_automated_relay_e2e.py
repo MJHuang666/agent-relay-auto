@@ -12,7 +12,7 @@ fake_module = load_runtime_module("fake", "adapters/fake.py")
 
 
 class AutomatedRelayE2ETests(unittest.TestCase):
-    def test_reviewer_to_planner_reporting_reaches_done_without_git_side_effects(self):
+    def test_background_roles_stop_at_foreground_reporting_without_git_side_effects(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
             (repo / ".git").mkdir()
@@ -39,7 +39,7 @@ tasks:
 ```yaml
 task: TASK-001
 title: E2E
-status: PLANNING
+status: IMPLEMENTING
 revision: 1
 stage_round: 1
 run_id: null
@@ -49,8 +49,8 @@ rework_round: 0
 auto_replan_count: 0
 agent_failure_count: 0
 runtime_snapshot_ref: null
-current_role: planner
-current_participant: planner-main
+current_role: implementer
+current_participant: implementer-main
 writer_session: null
 execution: idle
 ```
@@ -63,7 +63,9 @@ execution: idle
             for _ in range(80):
                 runner.run_once()
                 time.sleep(0.01)
-            self.assertIn("status: DONE", (task / "STATE.md").read_text(encoding="utf-8"))
+            state = (task / "STATE.md").read_text(encoding="utf-8")
+            self.assertIn("status: REPORTING", state)
+            self.assertNotIn("status: DONE", state)
             self.assertFalse((repo / "MERGE").exists())
             self.assertFalse((repo / "RELEASE").exists())
             self.assertFalse((repo / "DEPLOY").exists())

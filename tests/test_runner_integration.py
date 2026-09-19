@@ -30,7 +30,7 @@ STATE = """# Task State
 ```yaml
 task: TASK-001
 title: Demo
-status: PLANNING
+status: IMPLEMENTING
 revision: 1
 stage_round: 1
 run_id: null
@@ -40,8 +40,8 @@ rework_round: 0
 auto_replan_count: 0
 agent_failure_count: 0
 runtime_snapshot_ref: null
-current_role: planner
-current_participant: planner-a
+current_role: implementer
+current_participant: implementer-a
 writer_session: null
 execution: idle
 ```
@@ -49,7 +49,7 @@ execution: idle
 
 
 class RunnerIntegrationTests(unittest.TestCase):
-    def test_fake_runner_advances_all_stages_to_done(self):
+    def test_fake_runner_advances_background_stages_to_foreground_reporting(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
             (repo / ".git").mkdir()
@@ -66,7 +66,8 @@ class RunnerIntegrationTests(unittest.TestCase):
                 runner.run_once()
                 time.sleep(0.02)
             state = (task / "STATE.md").read_text(encoding="utf-8")
-            self.assertIn("status: DONE", state)
+            self.assertIn("status: REPORTING", state)
+            self.assertNotIn("status: DONE", state)
 
     def test_broken_project_does_not_stop_later_registered_projects(self):
         with tempfile.TemporaryDirectory() as directory:
