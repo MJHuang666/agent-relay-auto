@@ -73,6 +73,7 @@ class RuntimeConfigurator:
                         "model": item.model,
                         "reasoning": item.reasoning,
                         "validation_status": item.validation_status,
+                        "execution_mode": item.execution_mode,
                     }
                     for role, item in configured.items()
                 }
@@ -151,10 +152,11 @@ class RuntimeConfigurator:
             model = str(role_config.get("model", "")).strip()
             participant_id = str(role_config.get("participant_id", "")).strip()
             reasoning = str(role_config.get("reasoning", "medium")).strip()
+            execution_mode = "foreground" if role == "planner" else "background"
             if automation_mode == "automatic":
                 if not participant_id:
                     raise ConfigurationError(f"{role}.participant_id is required before Runner installation")
-                if agent not in {"codex", "opencode", "claude-code"}:
+                if execution_mode == "background" and agent not in {"codex", "opencode", "claude-code"}:
                     raise ConfigurationError(f"{role}.agent does not support automatic execution: {agent or 'missing'}")
                 if not model or model == "default" or model.startswith("<"):
                     raise ConfigurationError(f"{role}.model must be explicitly selected before Runner installation")
@@ -166,6 +168,7 @@ class RuntimeConfigurator:
                 "model": model,
                 "reasoning": reasoning,
                 "validation_status": str(role_config.get("validation_status", "pending")),
+                "execution_mode": execution_mode,
             }
         policy_path = self.repo / "docs/agent/automation-policy.yaml"
         policy_path.parent.mkdir(parents=True, exist_ok=True)
@@ -195,6 +198,7 @@ class RuntimeConfigurator:
             lines.extend(
                 [
                     f"  {role}:",
+                    f"    execution_mode: {role_config['execution_mode']}",
                     f"    participant_id: {role_config['participant_id']}",
                     f"    agent: {role_config['agent']}",
                     f"    model: {role_config['model']}",

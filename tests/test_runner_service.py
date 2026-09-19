@@ -60,16 +60,15 @@ class RunnerServiceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             repo = self.make_repo(directory)
             router = factory.create_adapter_factory()(repo)
-            planner = base.LaunchRequest(repo, "TASK-001", "planner", "planner-codex", "ignored", None, "run-1", 1)
             implementer = base.LaunchRequest(repo, "TASK-001", "implementer", "implementer-opencode", "ignored", None, "run-2", 1)
             reviewer = base.LaunchRequest(repo, "TASK-001", "reviewer", "reviewer-claude", "ignored", None, "run-3", 1)
 
-            planner_command = router.build_command(planner)
             implementer_command = router.build_command(implementer)
             reviewer_command = router.build_command(reviewer)
 
-            self.assertIn("gpt-test", planner_command)
-            self.assertIn('model_reasoning_effort="high"', planner_command)
+            self.assertFalse(router.is_background_role("planner"))
+            self.assertTrue(router.is_background_role("implementer"))
+            self.assertTrue(router.is_background_role("reviewer"))
             self.assertIn("openai/gpt-test", implementer_command)
             self.assertIn("--variant", implementer_command)
             self.assertIn("claude-test", reviewer_command)
@@ -93,9 +92,25 @@ class RunnerServiceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             repo = self.make_repo(directory)
             router = factory.create_adapter_factory()(repo)
-            request = base.LaunchRequest(repo, "TASK-001", "planner", "planner-other", "ignored", None, "run-1", 1)
-            with self.assertRaisesRegex(factory.AdapterConfigurationError, "planner-other"):
+            request = base.LaunchRequest(repo, "TASK-001", "implementer", "implementer-other", "ignored", None, "run-1", 1)
+            with self.assertRaisesRegex(factory.AdapterConfigurationError, "implementer-other"):
                 router.build_command(request)
+
+    def test_missing_execution_mode_uses_hybrid_defaults(self):
+        with tempfile.TemporaryDirectory() as directory:
+            roles = factory.load_agent_policy(self.make_repo(directory))
+            self.assertEqual(roles["planner"].execution_mode, "foreground")
+            self.assertEqual(roles["implementer"].execution_mode, "background")
+            self.assertEqual(roles["reviewer"].execution_mode, "background")
+
+    def test_foreground_planner_does_not_require_an_adapter_builder(self):
+        with tempfile.TemporaryDirectory() as directory:
+            policy = POLICY.replace("agent: codex", "agent: unavailable-gui-tool", 1)
+            router = factory.create_adapter_factory({
+                "opencode": lambda: object(),
+                "claude-code": lambda: object(),
+            })(self.make_repo(directory, policy))
+            self.assertFalse(router.is_background_role("planner"))
 
     def test_once_entry_uses_real_factory_for_registered_idle_project(self):
         with tempfile.TemporaryDirectory() as directory:

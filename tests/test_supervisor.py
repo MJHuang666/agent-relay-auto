@@ -49,6 +49,12 @@ execution: idle
 
 
 class SupervisorTests(unittest.TestCase):
+    @staticmethod
+    def implementing_state():
+        return STATE.replace("status: PLANNING", "status: IMPLEMENTING").replace(
+            "current_role: planner", "current_role: implementer"
+        ).replace("current_participant: planner-a", "current_participant: impl-a")
+
     def test_same_revision_starts_only_one_process(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
@@ -56,7 +62,7 @@ class SupervisorTests(unittest.TestCase):
             task = repo / "docs/agent/tasks/TASK-001"
             task.mkdir(parents=True)
             (repo / "docs/agent/PROJECT_STATUS.md").write_text(PROJECT, encoding="utf-8")
-            (task / "STATE.md").write_text(STATE, encoding="utf-8")
+            (task / "STATE.md").write_text(self.implementing_state(), encoding="utf-8")
             fixture = Path(__file__).resolve().parent / "fixtures/fake_agent_cli.py"
             adapter = fake_module.FakeAdapter(sys.executable, fixture, sleep=0.25)
             supervisor = supervisor_module.ProjectSupervisor(repo, adapter)
@@ -99,7 +105,7 @@ class SupervisorTests(unittest.TestCase):
             task = repo / "docs/agent/tasks/TASK-001"
             task.mkdir(parents=True)
             (repo / "docs/agent/PROJECT_STATUS.md").write_text(PROJECT, encoding="utf-8")
-            (task / "STATE.md").write_text(STATE, encoding="utf-8")
+            (task / "STATE.md").write_text(self.implementing_state(), encoding="utf-8")
             supervisor = supervisor_module.ProjectSupervisor(repo, AdapterWithoutCallback())
             started = supervisor.tick()
             deadline = time.time() + 3
@@ -115,6 +121,37 @@ class SupervisorTests(unittest.TestCase):
             self.assertIn("run_id: null", state)
             stdout_log = repo / ".agent-relay-auto/runs/TASK-001" / started.run_id / "stdout.log"
             self.assertIn("fake-agent-finish", stdout_log.read_text(encoding="utf-8"))
+
+    def test_planning_waits_for_foreground_planner_without_starting_process(self):
+        class NeverStartAdapter:
+            def capabilities(self):
+                raise AssertionError("foreground planner must not inspect adapter capabilities")
+
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            task = repo / "docs/agent/tasks/TASK-001"
+            task.mkdir(parents=True)
+            (repo / "docs/agent/PROJECT_STATUS.md").write_text(PROJECT, encoding="utf-8")
+            (task / "STATE.md").write_text(STATE, encoding="utf-8")
+            decision = supervisor_module.ProjectSupervisor(repo, NeverStartAdapter()).tick()
+            self.assertEqual(decision.action, "waiting_foreground_planner")
+            self.assertEqual(decision.detail, "PLANNING")
+
+    def test_reporting_waits_for_foreground_planner_without_starting_process(self):
+        class NeverStartAdapter:
+            def capabilities(self):
+                raise AssertionError("foreground planner must not inspect adapter capabilities")
+
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            task = repo / "docs/agent/tasks/TASK-001"
+            task.mkdir(parents=True)
+            (repo / "docs/agent/PROJECT_STATUS.md").write_text(PROJECT, encoding="utf-8")
+            reporting = STATE.replace("status: PLANNING", "status: REPORTING")
+            (task / "STATE.md").write_text(reporting, encoding="utf-8")
+            decision = supervisor_module.ProjectSupervisor(repo, NeverStartAdapter()).tick()
+            self.assertEqual(decision.action, "waiting_foreground_planner")
+            self.assertEqual(decision.detail, "REPORTING")
 
 
 if __name__ == "__main__":

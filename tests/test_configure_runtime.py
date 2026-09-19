@@ -108,6 +108,8 @@ class ConfigureRuntimeTests(unittest.TestCase):
             self.assertIn("reasoning_effort: high", policy)
             self.assertIn("variant: high", policy)
             self.assertIn("effort: high", policy)
+            self.assertEqual(policy.count("execution_mode: foreground"), 1)
+            self.assertEqual(policy.count("execution_mode: background"), 2)
             summary = configurator.RuntimeConfigurator(repo).inspect_existing()
             self.assertEqual(summary["roles"]["planner"]["model"], "gpt-test")
             self.assertEqual(summary["roles"]["implementer"]["participant_id"], "implementer-opencode")

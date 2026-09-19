@@ -92,12 +92,12 @@ class ProjectSupervisor:
         if state.get("run_status") in {"starting", "running"}:
             return SupervisorDecision("already_running", str(task_id), str(state.get("run_id")))
         status = state.get("status")
+        if status in {"PLANNING", "REPORTING"}:
+            return SupervisorDecision("waiting_foreground_planner", str(task_id), detail=str(status), report=True)
         role = {
-            "PLANNING": "planner",
             "IMPLEMENTING": "implementer",
             "CHANGES_REQUESTED": "implementer",
             "REVIEWING": "reviewer",
-            "REPORTING": "planner",
         }.get(status)
         if role is None:
             return SupervisorDecision("waiting", str(task_id))
