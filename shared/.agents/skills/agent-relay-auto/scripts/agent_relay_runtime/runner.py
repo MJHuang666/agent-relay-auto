@@ -22,7 +22,7 @@ def _sibling(name: str):
 try:
     from .registry import ProjectRegistry
     from .supervisor import ProjectSupervisor, SupervisorDecision
-    from .notifications import MacOSNotifier
+    from .notifications import MacOSNotifier, NotificationJournal, NotificationKey
     from .config import load_runtime_config
 except ImportError:
     ProjectRegistry = _sibling("registry").ProjectRegistry
@@ -30,6 +30,8 @@ except ImportError:
     ProjectSupervisor = _supervisor_module.ProjectSupervisor
     SupervisorDecision = _supervisor_module.SupervisorDecision
     MacOSNotifier = _sibling("notifications").MacOSNotifier
+    NotificationJournal = _sibling("notifications").NotificationJournal
+    NotificationKey = _sibling("notifications").NotificationKey
     load_runtime_config = _sibling("config").load_runtime_config
 
 
@@ -64,10 +66,25 @@ class RelayRunner:
                 self._project_errors[repo] = detail
                 decision = SupervisorDecision("project_error", detail=detail, report=report)
             decisions.append(decision)
-            if decision.action == "project_error" and decision.report:
-                self.notifier.notify(repo.name, "Runner", "PROJECT_ERROR", decision.detail)
-            elif decision.task_id and decision.action in {"blocked", "waiting"}:
-                self.notifier.notify(repo.name, decision.task_id, decision.action.upper(), decision.action)
+            attention = {
+                "waiting_foreground_planner", "waiting_user", "blocked", "done", "project_error"
+            }
+            if decision.action in attention and decision.report:
+                task_id = decision.task_id or "Runner"
+                revision = 0
+                state_path = ""
+                if decision.task_id:
+                    path = repo / "docs/agent/tasks" / decision.task_id / "STATE.md"
+                    state_path = str(path)
+                    if path.is_file():
+                        state = _sibling("markdown_state").parse_fenced_yaml(path.read_text(encoding="utf-8"))
+                        revision = int(state.get("revision", 0))
+                key = NotificationKey(repo.name, task_id, decision.action.upper(), revision)
+                if NotificationJournal(repo).emit_once(key, state_path):
+                    self.notifier.notify(
+                        repo.name, task_id, key.state, decision.detail or decision.action,
+                        revision, state_path,
+                    )
         return tuple(decisions)
 
     def serve(self, poll_interval_seconds: float = 2.0) -> None:

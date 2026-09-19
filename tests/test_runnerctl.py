@@ -10,6 +10,45 @@ runnerctl = load_runtime_module("runnerctl", "../runnerctl.py")
 
 
 class RunnerCtlTests(unittest.TestCase):
+    def test_status_reports_foreground_wait_and_protocol_failure_log(self):
+        policy = """mode: automatic
+roles:
+  planner:
+    participant_id: planner-codex
+    agent: codex
+    model: gpt-test
+    reasoning_effort: high
+  implementer:
+    participant_id: implementer-codex
+    agent: codex
+    model: gpt-test
+    reasoning_effort: medium
+  reviewer:
+    participant_id: reviewer-codex
+    agent: codex
+    model: gpt-test
+    reasoning_effort: medium
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = root / "repo"
+            task = repo / "docs/agent/tasks/TASK-001"
+            task.mkdir(parents=True)
+            (repo / "docs/agent/automation-policy.yaml").write_text(policy)
+            (repo / "docs/agent/PROJECT_STATUS.md").write_text(
+                "# Project\n\n```yaml\nactive_task: TASK-001\n```\n"
+            )
+            (task / "STATE.md").write_text(
+                "# State\n\n```yaml\nstatus: REPORTING\nrevision: 9\nrun_id: null\n"
+                "last_finished_run_id: run-1\nlast_run_result: protocol_failure\n```\n"
+            )
+            def run(command, **kwargs):
+                return SimpleNamespace(returncode=0, stdout="state = running\nactive count = 1\n", stderr="")
+            result = runnerctl.RunnerController(root / "projects.json", root / "runner.plist", 501, run).status(repo)
+            self.assertEqual(result["runner_action"], "waiting_foreground_planner")
+            self.assertTrue(result["attention_required"])
+            self.assertEqual(result["last_run_result"], "protocol_failure")
+            self.assertTrue(Path(result["run_log"]).is_absolute())
     def test_dry_run_actions_are_json_safe(self):
         with tempfile.TemporaryDirectory() as directory:
             result = runnerctl.command_status(Path(directory), dry_run=True)

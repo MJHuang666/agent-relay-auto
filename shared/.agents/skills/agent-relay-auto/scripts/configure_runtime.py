@@ -186,6 +186,11 @@ class RuntimeConfigurator:
             "  stop_after_agent_runs: 12",
             "  require_confirmation_after_warning: false",
             "  record_provider_usage: true",
+            "runtime:",
+            "  agent_timeout_minutes: 30",
+            "  heartbeat_interval_seconds: 10",
+            "  heartbeat_stale_seconds: 45",
+            "  interrupt_grace_seconds: 30",
             "roles:",
         ]
         for role in ("planner", "implementer", "reviewer"):

@@ -8,6 +8,7 @@ from tests.shared.agent_relay_runtime_loader import load_runtime_module
 
 
 runner_module = load_runtime_module("runner")
+markdown = load_runtime_module("markdown_state")
 fake_module = load_runtime_module("fake", "adapters/fake.py")
 notifications = load_runtime_module("notifications")
 
@@ -49,6 +50,30 @@ execution: idle
 
 
 class RunnerIntegrationTests(unittest.TestCase):
+    def test_foreground_wait_notifies_once_per_revision(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            task = repo / "docs/agent/tasks/TASK-001"
+            task.mkdir(parents=True)
+            (repo / "docs/agent/PROJECT_STATUS.md").write_text(PROJECT, encoding="utf-8")
+            reporting = STATE.replace("status: IMPLEMENTING", "status: REPORTING").replace(
+                "current_role: implementer", "current_role: planner"
+            )
+            (task / "STATE.md").write_text(reporting, encoding="utf-8")
+            registry = runner_module.ProjectRegistry(repo / "projects.json")
+            registry.register(repo)
+            notifier = notifications.RecordingNotifier()
+            runner = runner_module.RelayRunner(registry, lambda _: object(), notifier)
+
+            runner.run_once()
+            runner.run_once()
+            self.assertEqual(len(notifier.events), 1)
+            path = task / "STATE.md"
+            markdown.atomic_write_text(
+                path, markdown.set_yaml_value(path.read_text(), ("revision",), 2)
+            )
+            runner.run_once()
+            self.assertEqual(len(notifier.events), 2)
     def test_fake_runner_advances_background_stages_to_foreground_reporting(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
