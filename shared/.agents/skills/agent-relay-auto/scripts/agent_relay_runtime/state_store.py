@@ -73,6 +73,14 @@ class TransitionResult:
     idempotent_replay: bool = False
 
 
+@dataclass(frozen=True)
+class StageEvidence:
+    progress_ref: str
+    delivery_ref: str | None = None
+    review_ref: str | None = None
+    report_ref: str | None = None
+
+
 def now_iso() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
 
@@ -120,6 +128,15 @@ _TRANSITIONS = {
     ("REVIEWING", "changes_requested"): "IMPLEMENTING",
     ("REVIEWING", "replan_required"): "PLANNING",
     ("REPORTING", "report_completed"): "DONE",
+}
+
+_ROLE_EVENTS = {
+    ("planner", "plan_completed"): ("PLANNING", "IMPLEMENTING", "implementer"),
+    ("implementer", "implementation_completed"): ("IMPLEMENTING", "REVIEWING", "reviewer"),
+    ("reviewer", "review_passed"): ("REVIEWING", "REPORTING", "planner"),
+    ("reviewer", "changes_requested"): ("REVIEWING", "IMPLEMENTING", "implementer"),
+    ("reviewer", "replan_required"): ("REVIEWING", "PLANNING", "planner"),
+    ("planner", "report_completed"): ("REPORTING", "DONE", "planner"),
 }
 
 
@@ -175,6 +192,71 @@ class StateStore:
                 values[("current_role",)] = payload["current_role"]
             self._write_state(path, text, values)
             return TransitionResult(task_id, old_status, new_status, expected_revision, expected_revision + 1)
+
+    def complete_stage(
+        self,
+        task_id: str,
+        expected_revision: int,
+        role: str,
+        participant_id: str,
+        run_id: str | None,
+        event: str,
+        evidence: StageEvidence,
+    ) -> TransitionResult:
+        rule = _ROLE_EVENTS.get((role, event))
+        if rule is None:
+            raise TransitionError(f"role {role} cannot submit event {event}")
+        expected_status, new_status, next_role = rule
+        with _state_lock(self.repo, f"complete-stage:{event}"):
+            path, text, state = self._read_task(task_id)
+            if state.get("revision") != expected_revision:
+                raise RevisionConflict(
+                    f"revision mismatch: expected {expected_revision}, actual {state.get('revision')}"
+                )
+            if state.get("status") != expected_status:
+                raise TransitionError(f"illegal transition: {state.get('status')} + {event}")
+            if state.get("current_role") != role or state.get("current_participant") != participant_id:
+                raise TransitionError(
+                    f"role identity mismatch: expected {role}/{participant_id}, "
+                    f"actual {state.get('current_role')}/{state.get('current_participant')}"
+                )
+            if role in {"implementer", "reviewer"}:
+                if not run_id or state.get("run_id") != run_id or state.get("writer_session") != run_id:
+                    raise TransitionError(
+                        f"run identity mismatch: expected {run_id}, actual {state.get('run_id')}"
+                    )
+            elif run_id is not None:
+                raise TransitionError("foreground planner completion cannot carry a background run ID")
+            assignments = state.get("assignments") if isinstance(state.get("assignments"), Mapping) else {}
+            next_participant = assignments.get(next_role) or (
+                participant_id if next_role == role else f"{next_role}-main"
+            )
+            values: dict[tuple[str, ...], object] = {
+                ("status",): new_status,
+                ("previous_role",): role,
+                ("previous_participant",): participant_id,
+                ("previous_progress",): evidence.progress_ref,
+                ("current_role",): next_role,
+                ("current_participant",): next_participant,
+                ("stage_round",): int(state.get("stage_round", 1)) + 1,
+                ("revision",): expected_revision + 1,
+                ("updated_at",): now_iso(),
+            }
+            if evidence.delivery_ref is not None:
+                values[("code_delivery_ref",)] = evidence.delivery_ref
+            if evidence.review_ref is not None:
+                values[("review_ref",)] = evidence.review_ref
+            if evidence.report_ref is not None:
+                values[("report_ref",)] = evidence.report_ref
+            if event == "changes_requested":
+                values[("rework_round",)] = int(state.get("rework_round", 0)) + 1
+            if event == "replan_required":
+                values[("auto_replan_count",)] = int(state.get("auto_replan_count", 0)) + 1
+            if role == "planner":
+                values[("writer_session",)] = None
+                values[("execution",)] = "idle"
+            self._write_state(path, text, values)
+            return TransitionResult(task_id, expected_status, new_status, expected_revision, expected_revision + 1)
 
     def claim(self, key: ClaimKey, run_id: str) -> TransitionResult:
         with _state_lock(self.repo, "claim"):

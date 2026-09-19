@@ -18,6 +18,7 @@ from agent_relay_runtime.state_store import (  # noqa: E402
     RevisionConflict,
     StateStore,
     StateStoreError,
+    StageEvidence,
     TransitionError,
     _state_lock,
 )
@@ -76,6 +77,13 @@ def _answer(args: argparse.Namespace) -> dict:
     answer_path = Path(args.answer_file)
     if not answer_path.is_file():
         raise ValueError(f"answer file is missing: {answer_path}")
+    decision_values: dict[str, set[str]] = {"subagent_policy": {"USE", "DO_NOT_USE"}}
+    if bool(args.decision_key) != bool(args.decision_value):
+        raise ValueError("decision-key and decision-value must be supplied together")
+    if args.decision_key:
+        allowed = decision_values.get(args.decision_key)
+        if allowed is None or args.decision_value not in allowed:
+            raise ValueError(f"unsupported decision: {args.decision_key}={args.decision_value}")
     repo = Path(args.repo).resolve()
     with _state_lock(repo, "answer"):
         _, state_path, text, state = _context(repo, args.task)
@@ -91,17 +99,21 @@ def _answer(args: argparse.Namespace) -> dict:
             + answer_path.read_text(encoding="utf-8")
             + "\n",
         )
+        values = {
+            ("status",): state.get("suspended_status") or "PLANNING",
+            ("suspended_status",): None,
+            ("resume_role",): None,
+            ("question_id",): None,
+            ("question_ref",): None,
+            ("revision",): args.expected_revision + 1,
+        }
+        if args.decision_key == "subagent_policy":
+            values[("subagent_policy",)] = args.decision_value
+            values[("subagent_decision_ref",)] = answer_ref
         _write_values(
             state_path,
             text,
-            {
-                ("status",): state.get("suspended_status") or "PLANNING",
-                ("suspended_status",): None,
-                ("resume_role",): None,
-                ("question_id",): None,
-                ("question_ref",): None,
-                ("revision",): args.expected_revision + 1,
-            },
+            values,
         )
     return {"task": args.task, "output_revision": args.expected_revision + 1, "answer_ref": answer_ref}
 
@@ -117,8 +129,19 @@ def _verdict(args: argparse.Namespace) -> dict:
     }.get(args.verdict)
     if event is None:
         raise ValueError(f"unsupported verdict: {args.verdict}")
-    result = StateStore(Path(args.repo).resolve()).transition(
-        args.task, args.expected_revision, event, {"evidence": str(evidence)}
+    delivery = _require_task_reference(Path(args.repo).resolve(), args.task, args.delivery_ref, "delivery")
+    result = StateStore(Path(args.repo).resolve()).complete_stage(
+        args.task,
+        args.expected_revision,
+        "reviewer",
+        args.participant_id,
+        args.run_id,
+        event,
+        StageEvidence(
+            progress_ref=str(evidence),
+            delivery_ref=args.delivery_ref,
+            review_ref=str(evidence),
+        ),
     )
     return result.__dict__
 
@@ -132,10 +155,65 @@ def _report_done(args: argparse.Namespace) -> dict:
     missing = [term for term in required if term not in content]
     if missing:
         raise ValueError("final report is missing sections: " + ", ".join(missing))
-    result = StateStore(Path(args.repo).resolve()).transition(
-        args.task, args.expected_revision, "report_completed", {"report": str(report)}
+    _require_task_reference(Path(args.repo).resolve(), args.task, args.review_ref, "review")
+    result = StateStore(Path(args.repo).resolve()).complete_stage(
+        args.task,
+        args.expected_revision,
+        "planner",
+        args.participant_id,
+        None,
+        "report_completed",
+        StageEvidence(progress_ref=str(report), review_ref=args.review_ref, report_ref=str(report)),
     )
     return result.__dict__
+
+
+def _require_file(path: Path, label: str) -> Path:
+    if not path.is_file() or not path.read_text(encoding="utf-8").strip():
+        raise ValueError(f"{label} file is missing or empty: {path}")
+    return path
+
+
+def _require_task_reference(repo: Path, task_id: str, reference: str, label: str) -> Path:
+    raw_path = reference.split("#", 1)[0]
+    path = Path(raw_path)
+    if not path.is_absolute():
+        path = repo / "docs/agent/tasks" / task_id / path
+    return _require_file(path.resolve(), label)
+
+
+def _plan_done(args: argparse.Namespace) -> dict:
+    repo = Path(args.repo).resolve()
+    plan = _require_file(Path(args.plan), "plan")
+    progress = _require_file(Path(args.progress), "progress")
+    _require_task_reference(repo, args.task, args.approval_ref, "approval")
+    result = StateStore(repo).complete_stage(
+        args.task,
+        args.expected_revision,
+        "planner",
+        args.participant_id,
+        None,
+        "plan_completed",
+        StageEvidence(progress_ref=str(progress)),
+    )
+    return {**result.__dict__, "plan": str(plan), "approval_ref": args.approval_ref}
+
+
+def _implementation_done(args: argparse.Namespace) -> dict:
+    repo = Path(args.repo).resolve()
+    execution = _require_file(Path(args.execution), "execution")
+    progress = _require_file(Path(args.progress), "progress")
+    _require_task_reference(repo, args.task, args.delivery_ref, "delivery")
+    result = StateStore(repo).complete_stage(
+        args.task,
+        args.expected_revision,
+        "implementer",
+        args.participant_id,
+        args.run_id,
+        "implementation_completed",
+        StageEvidence(progress_ref=str(progress), delivery_ref=args.delivery_ref),
+    )
+    return {**result.__dict__, "execution": str(execution), "delivery_ref": args.delivery_ref}
 
 
 def _status(args: argparse.Namespace) -> dict:
@@ -179,15 +257,37 @@ def parser() -> argparse.ArgumentParser:
     answer.add_argument("--expected-revision", type=int, required=True)
     answer.add_argument("--question-id", required=True)
     answer.add_argument("--answer-file", required=True)
+    answer.add_argument("--decision-key")
+    answer.add_argument("--decision-value")
+    plan = commands.add_parser("plan-done")
+    plan.add_argument("--task", required=True)
+    plan.add_argument("--expected-revision", type=int, required=True)
+    plan.add_argument("--participant-id", required=True)
+    plan.add_argument("--plan", required=True)
+    plan.add_argument("--approval-ref", required=True)
+    plan.add_argument("--progress", required=True)
+    implementation = commands.add_parser("implementation-done")
+    implementation.add_argument("--task", required=True)
+    implementation.add_argument("--expected-revision", type=int, required=True)
+    implementation.add_argument("--participant-id", required=True)
+    implementation.add_argument("--run-id", required=True)
+    implementation.add_argument("--execution", required=True)
+    implementation.add_argument("--delivery-ref", required=True)
+    implementation.add_argument("--progress", required=True)
     verdict = commands.add_parser("verdict")
     verdict.add_argument("--task", required=True)
     verdict.add_argument("--expected-revision", type=int, required=True)
     verdict.add_argument("--verdict", required=True)
     verdict.add_argument("--evidence", required=True)
+    verdict.add_argument("--participant-id", required=True)
+    verdict.add_argument("--run-id", required=True)
+    verdict.add_argument("--delivery-ref", required=True)
     report = commands.add_parser("report-done")
     report.add_argument("--task", required=True)
     report.add_argument("--expected-revision", type=int, required=True)
     report.add_argument("--report", required=True)
+    report.add_argument("--participant-id", required=True)
+    report.add_argument("--review-ref", required=True)
     cancel = commands.add_parser("cancel")
     cancel.add_argument("--task", required=True)
     cancel.add_argument("--expected-revision", type=int, required=True)
@@ -201,6 +301,8 @@ def main(argv: list[str] | None = None) -> int:
         "status": _status,
         "wait-user": _wait_user,
         "answer": _answer,
+        "plan-done": _plan_done,
+        "implementation-done": _implementation_done,
         "verdict": _verdict,
         "report-done": _report_done,
         "cancel": _cancel,

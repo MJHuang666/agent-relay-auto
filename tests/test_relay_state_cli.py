@@ -5,6 +5,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from tests.shared.agent_relay_runtime_loader import load_runtime_module
+
+
+state_store = load_runtime_module("relay_cli_state_store", "state_store.py")
+
 
 SCRIPT = (
     Path(__file__).resolve().parents[1]
@@ -35,7 +40,6 @@ language: en-US
 status: REVIEWING
 revision: 4
 stage_round: 2
-run_id: null
 run_status: idle
 run_attempt: 0
 rework_round: 0
@@ -44,7 +48,12 @@ agent_failure_count: 0
 runtime_snapshot_ref: null
 current_role: reviewer
 current_participant: reviewer-a
-writer_session: null
+writer_session: run-review-1
+assignments:
+  planner: planner-a
+  implementer: impl-a
+  reviewer: reviewer-a
+run_id: run-review-1
 execution: idle
 next_expected_output: review.md
 question_id: null
@@ -122,8 +131,15 @@ class RelayStateCliTests(unittest.TestCase):
             "PASS",
             "--evidence",
             str(self.repo / "missing.md"),
+            "--participant-id",
+            "reviewer-a",
+            "--run-id",
+            "run-review-1",
+            "--delivery-ref",
+            "execution.md#delivery-1",
             expected=2,
         )
+        (self.repo / "docs/agent/tasks/TASK-001/execution.md").write_text("delivery evidence\n", encoding="utf-8")
         evidence = self.repo / "evidence.md"
         evidence.write_text("tests passed\n", encoding="utf-8")
         self.run_cli(
@@ -136,7 +152,14 @@ class RelayStateCliTests(unittest.TestCase):
             "PASS",
             "--evidence",
             str(evidence),
+            "--participant-id",
+            "reviewer-a",
+            "--run-id",
+            "run-review-1",
+            "--delivery-ref",
+            "execution.md#delivery-1",
         )
+        state_store.StateStore(self.repo).finish_run("TASK-001", "run-review-1", 0)
         report = self.repo / "report.md"
         report.write_text("# Final Report\n\nGoal\nDelivery\nTests\nReviewer evidence\nLimitations\nUsage\nNot executed: merge, push, release, deploy\n", encoding="utf-8")
         self.run_cli(
@@ -144,11 +167,43 @@ class RelayStateCliTests(unittest.TestCase):
             "--task",
             "TASK-001",
             "--expected-revision",
-            "5",
+            "6",
             "--report",
             str(report),
+            "--participant-id",
+            "planner-a",
+            "--review-ref",
+            str(evidence),
         )
         self.assertIn("status: DONE", (self.repo / "docs/agent/tasks/TASK-001/STATE.md").read_text())
+
+    def test_subagent_answer_updates_policy_and_rejects_invalid_value_without_artifact(self):
+        question = self.repo / "question.md"
+        question.write_text("USE or DO_NOT_USE\n", encoding="utf-8")
+        self.run_cli(
+            "wait-user", "--task", "TASK-001", "--expected-revision", "4",
+            "--question-file", str(question), "--resume-role", "reviewer",
+        )
+        state_path = self.repo / "docs/agent/tasks/TASK-001/STATE.md"
+        state = state_path.read_text(encoding="utf-8")
+        question_id = next(line.split(":", 1)[1].strip() for line in state.splitlines() if line.startswith("question_id:"))
+        answer = self.repo / "answer.md"
+        answer.write_text("DO_NOT_USE\n", encoding="utf-8")
+        self.run_cli(
+            "answer", "--task", "TASK-001", "--expected-revision", "5",
+            "--question-id", question_id, "--answer-file", str(answer),
+            "--decision-key", "subagent_policy", "--decision-value", "MAYBE", expected=2,
+        )
+        decisions = self.repo / "docs/agent/tasks/TASK-001/decisions"
+        self.assertFalse(decisions.exists())
+        self.run_cli(
+            "answer", "--task", "TASK-001", "--expected-revision", "5",
+            "--question-id", question_id, "--answer-file", str(answer),
+            "--decision-key", "subagent_policy", "--decision-value", "DO_NOT_USE",
+        )
+        updated = state_path.read_text(encoding="utf-8")
+        self.assertIn("subagent_policy: DO_NOT_USE", updated)
+        self.assertIn(f"subagent_decision_ref: decisions/{question_id}.md", updated)
 
 
 if __name__ == "__main__":
