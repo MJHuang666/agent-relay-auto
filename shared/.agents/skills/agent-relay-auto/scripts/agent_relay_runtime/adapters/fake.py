@@ -30,18 +30,10 @@ class FakeAdapter:
         return AdapterCapabilities(True, False, False, False, True)
 
     def build_command(self, request: LaunchRequest, context=None) -> tuple[str, ...]:
-        return (self.python, str(self.fixture), "--sleep", str(self.sleep))
-
-    def on_result(self, supervisor, task_id: str, run_id: str, exit_code: int) -> None:
-        result = supervisor.store.finish_run(task_id, run_id, exit_code)
-        if exit_code != 0:
-            return
-        _, _, state = supervisor.store._read_task(task_id)
-        event = {
-            "PLANNING": "plan_completed",
-            "IMPLEMENTING": "implementation_completed",
-            "REVIEWING": "review_passed",
-            "REPORTING": "report_completed",
-        }.get(state.get("status"))
-        if event is not None:
-            supervisor.store.transition(task_id, result.output_revision, event, {})
+        command = [
+            self.python, str(self.fixture), "--sleep", str(self.sleep),
+            "--repo", str(request.repo), "--task", request.task_id,
+            "--role", request.role, "--participant-id", request.participant_id,
+            "--run-id", request.run_id,
+        ]
+        return tuple(command)

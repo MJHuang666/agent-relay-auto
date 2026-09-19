@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import os
 import sys
 import time
 import uuid
@@ -105,6 +107,45 @@ class ProjectSupervisor:
         }.get(final.action, "protocol_failure")
         return SupervisorDecision(action, task_id, managed.run_id, detail=termination_reason, report=action == "blocked")
 
+    def _finalize_durable(
+        self, task_id: str, run_id: str, exit_code: int, termination_reason: str
+    ) -> SupervisorDecision:
+        run_dir = self.run_store._run_path(run_id)
+        metadata = json.loads((run_dir / "metadata.json").read_text(encoding="utf-8"))
+        self.run_store.finish(run_id, exit_code, None)
+        final = self.store.finish_run(
+            task_id,
+            run_id,
+            exit_code,
+            str(metadata.get("start_status", "")),
+            termination_reason,
+        )
+        self.run_store.mark_protocol_result(run_id, str(final.action))
+        action = {"completed": "finished", "retry": "retry_scheduled", "blocked": "blocked"}.get(
+            final.action, "protocol_failure"
+        )
+        return SupervisorDecision(action, task_id, run_id, termination_reason, action == "blocked")
+
+    def _reconcile_durable(self, task_id: str, run_id: str) -> SupervisorDecision:
+        exit_record = self.run_store.read_exit(run_id)
+        if exit_record is not None:
+            return self._finalize_durable(
+                task_id,
+                run_id,
+                int(exit_record.get("exit_code", 1)),
+                str(exit_record.get("termination_reason", "exit")),
+            )
+        process = self.run_store.read_process(run_id)
+        if process is not None and process.get("run_id") == run_id:
+            try:
+                os.kill(int(process["worker_pid"]), 0)
+                return SupervisorDecision("already_running", task_id, run_id)
+            except (ProcessLookupError, ValueError, TypeError):
+                pass
+            except PermissionError:
+                return SupervisorDecision("already_running", task_id, run_id)
+        return self._finalize_durable(task_id, run_id, 1, "interrupted")
+
     def tick(self) -> SupervisorDecision:
         project_path = self.repo / "docs/agent/PROJECT_STATUS.md"
         if not project_path.is_file():
@@ -135,7 +176,7 @@ class ProjectSupervisor:
             return self._finalize(str(task_id), managed, result.exit_code, reason)
         _, _, state = self.store._read_task(str(task_id))
         if state.get("run_status") in {"starting", "running"}:
-            return SupervisorDecision("already_running", str(task_id), str(state.get("run_id")))
+            return self._reconcile_durable(str(task_id), str(state.get("run_id")))
         status = state.get("status")
         if status in {"PLANNING", "REPORTING"}:
             return SupervisorDecision("waiting_foreground_planner", str(task_id), detail=str(status), report=True)
