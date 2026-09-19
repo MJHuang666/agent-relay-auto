@@ -33,6 +33,8 @@ class RunStoreTests(unittest.TestCase):
             self.assertTrue((run_path / "stdout.log.1").is_file())
             usage = json.loads((run_path / "usage.json").read_text(encoding="utf-8"))
             self.assertEqual(usage["status"], "unavailable")
+            metadata = json.loads((run_path / "metadata.json").read_text(encoding="utf-8"))
+            self.assertEqual(metadata["status"], "finished")
 
 
 if __name__ == "__main__":

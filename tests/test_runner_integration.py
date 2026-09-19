@@ -68,6 +68,38 @@ class RunnerIntegrationTests(unittest.TestCase):
             state = (task / "STATE.md").read_text(encoding="utf-8")
             self.assertIn("status: DONE", state)
 
+    def test_broken_project_does_not_stop_later_registered_projects(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            broken = root / "broken"
+            broken.mkdir()
+            healthy = root / "healthy"
+            task = healthy / "docs/agent/tasks/TASK-001"
+            task.mkdir(parents=True)
+            (healthy / "docs/agent/PROJECT_STATUS.md").write_text(PROJECT, encoding="utf-8")
+            (task / "STATE.md").write_text(STATE, encoding="utf-8")
+            registry = runner_module.ProjectRegistry(root / "projects.json")
+            registry.register(broken)
+            registry.register(healthy)
+            adapter = fake_module.FakeAdapter(sys.executable, sleep=0.1)
+
+            def factory(repo):
+                if repo == broken.resolve():
+                    raise PermissionError("external volume denied")
+                return adapter
+
+            notifier = notifications.RecordingNotifier()
+            runner = runner_module.RelayRunner(registry, factory, notifier)
+            decisions = runner.run_once()
+            self.assertEqual(decisions[0].action, "project_error")
+            self.assertIn("external volume denied", decisions[0].detail)
+            self.assertTrue(decisions[0].report)
+            self.assertEqual(decisions[1].action, "started")
+            time.sleep(0.15)
+            repeated = runner.run_once()
+            self.assertFalse(repeated[0].report)
+            self.assertEqual(len([event for event in notifier.events if event["state"] == "PROJECT_ERROR"]), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

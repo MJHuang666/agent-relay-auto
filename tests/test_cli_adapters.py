@@ -23,6 +23,8 @@ class CliAdapterTests(unittest.TestCase):
         command = adapter.build_command(self.request())
         self.assertIn("exec", command)
         self.assertIn("--json", command)
+        self.assertIn("--skip-git-repo-check", command)
+        self.assertIn("--dangerously-bypass-approvals-and-sandbox", command)
         self.assertIn('model_reasoning_effort="high"', command)
 
     def test_opencode_preserves_provider_model_and_resume_session(self):

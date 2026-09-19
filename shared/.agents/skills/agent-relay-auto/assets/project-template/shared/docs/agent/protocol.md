@@ -28,6 +28,6 @@ Before changing product code, `STATE.md.subagent_policy` must be `USE` or `DO_NO
 
 ## Handoff
 
-Finish the role deliverable, append progress, update STATE as the handoff commit point, clear writer ownership, then refresh PROJECT_STATUS. Files do not wake another tool; the user opens the next tool and says `继续` or `continue`.
+Finish the role deliverable, append progress, update STATE as the handoff commit point, clear writer ownership, then refresh PROJECT_STATUS. With `mode: automatic`, Runner starts the next role; manual `继续` / `continue` applies only to manual mode, a stopped Runner, or a visible user-action `BLOCKED` state.
 
 DONE means task acceptance only. It does not authorize merge, release, deployment, deletion, rollback, or takeover.

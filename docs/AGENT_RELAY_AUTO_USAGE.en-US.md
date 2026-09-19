@@ -1,6 +1,6 @@
 # Agent Relay Auto Usage Guide
 
-This guide covers `agent-relay-auto` Skill v1.6.2: initialization, role handoff, Agent replacement, pause and recovery, state inspection, and task acceptance.
+This guide covers `agent-relay-auto` Skill v1.6.3: initialization, role handoff, Agent replacement, pause and recovery, state inspection, and task acceptance.
 
 ## Initialize a repository
 
@@ -150,6 +150,8 @@ The Skill must first confirm each role's `participant_id`, Agent, model, and rea
 After configuration, the Skill shows one three-role summary for confirmation and separately asks whether to install and start the Runner. It may install the macOS launchd Runner, register the project, and start the service only when the user explicitly approves and `configure_runtime.py inspect` returns `ready_to_start: true`. A missing configuration never sends the user looking for an “Adapter factory.”
 
 Automatic mode currently supports the non-interactive Codex, OpenCode, and Claude Code adapters. Other Agents continue through the manual relay. Different projects run independently; the first version executes one active task at a time within each project.
+
+After an automatic handoff, the current role reports that Runner is starting the next role and waits for its result; it does not ask the user to open another window or type `continue`. Runner status distinguishes healthy execution, a project configuration block, an unloaded service, and a launchd crash loop. One broken project does not stop other projects. Bounded, redacted output logs are stored under `.agent-relay-auto/runs/`.
 
 ```text
 $agent-relay-auto runner status

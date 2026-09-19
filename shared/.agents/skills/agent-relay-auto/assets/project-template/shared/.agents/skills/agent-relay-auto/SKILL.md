@@ -68,7 +68,8 @@ For state transitions, permissions, takeover, version evidence, interruption rec
 | Another writer_session is running | Inspect read-only; wait or request explicit takeover after confirming it stopped |
 | Valid assignment and idle state | Register this session, then perform the role |
 | Missing or contradictory state | Stop business work; use an authorized repair session |
-| Handoff complete | Tell the user which participant/tool should be opened and say “继续” |
+| Handoff complete in manual mode | Tell the user which participant/tool should be opened and say “继续” |
+| Handoff complete in automatic mode | Report that Runner has accepted the next stage, then wait for its result |
 
 ## Red Flags
 
@@ -97,6 +98,8 @@ When configuration is absent or incomplete, guide the user through Planner, Impl
 Show one final three-role summary and obtain confirmation, then ask separately whether to install and start the Runner. Apply the confirmed non-secret JSON with that answer as `runner_confirmed`, then inspect again. When installation was accepted, require `ready_to_start: true` before installing the versioned runtime with `setup_runner.py` and starting/registering the project with `runnerctl.py start --repo <repo>`. A failure at any gate remains visible and stops startup; do not expose “Adapter factory” as a user configuration step. Declining installation writes or keeps `mode: manual` and continues the file-based workflow.
 
 In automatic mode, Planner remains the user-facing decision entry point. The Runner may start Planner, Implementer, Reviewer, and the final Planner reporting pass through their configured non-interactive adapters. A decision request enters `WAITING_USER` and sends a notification without stealing focus. Reviewer evidence is required before `PASS`; Planner's valid final report is required before `DONE`.
+
+After a valid automatic handoff, the current role ends its write session and reports which role Runner is starting. It must not ask the user to open the next role or type `继续` / `continue`. Manual continuation instructions are used only when `mode: manual`, Runner is explicitly stopped, or the project is visibly `BLOCKED` with a user action.
 
 Use these management commands through `runnerctl.py` or the equivalent bilingual command:
 

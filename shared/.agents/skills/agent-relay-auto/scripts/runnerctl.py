@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -64,12 +65,32 @@ class RunnerController:
             configuration = "incomplete"
             problem = str(error)
         service = self._run("print", self.service)
+        state_match = re.search(r"^\s*state = (.+)$", service.stdout, re.MULTILINE)
+        active_match = re.search(r"^\s*active count = (\d+)$", service.stdout, re.MULTILINE)
+        exit_match = re.search(r"^\s*last exit code = (-?\d+)$", service.stdout, re.MULTILINE)
+        service_state = state_match.group(1).strip() if state_match else None
+        active_count = int(active_match.group(1)) if active_match else None
+        last_exit_code = int(exit_match.group(1)) if exit_match else None
+        if service.returncode != 0:
+            runner_status = "not-loaded"
+        elif service_state == "running" and (active_count is None or active_count > 0):
+            runner_status = "running"
+        elif last_exit_code not in {None, 0} or service_state == "spawn scheduled":
+            runner_status = "failed"
+        else:
+            runner_status = "loaded"
+        project_status = "blocked" if configuration == "incomplete" else runner_status
         return {
-            "status": "running" if service.returncode == 0 else "not-loaded",
+            "status": project_status,
+            "service_status": runner_status,
             "repo": str(repo),
             "configuration": configuration,
             "configuration_error": problem,
             "roles": {role: item.agent for role, item in roles.items()},
+            "service_state": service_state,
+            "active_count": active_count,
+            "last_exit_code": last_exit_code,
+            "stderr_log": str(self.plist_path.parent.parent / "Logs/AgentRelay/runner.error.log"),
         }
 
     def start(self, repo: Path) -> dict[str, object]:
@@ -89,6 +110,13 @@ class RunnerController:
         started = self._run("kickstart", "-k", self.service)
         if started.returncode != 0:
             raise RunnerControlError(started.stderr.strip() or "launchctl kickstart failed")
+        health = self.status(repo)
+        if health["status"] != "running":
+            raise RunnerControlError(
+                "Runner failed after startup "
+                f"(status={health['status']}, service_state={health['service_state']}, "
+                f"last_exit_code={health['last_exit_code']}); inspect {health['stderr_log']}"
+            )
         return {
             "status": "started",
             "repo": str(repo),

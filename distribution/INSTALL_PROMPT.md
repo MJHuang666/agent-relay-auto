@@ -1,5 +1,7 @@
 # 给安装智能体的提示词
 
+安装包版本：1.6.3
+
 请把这个压缩包中的 Agent Relay Auto 安装到当前项目，并遵守以下要求：
 
 1. 先只读检查项目根目录、现有 `AGENTS.md`、`.agents/`、`.cursor/`、`.claude/` 和 `docs/agent/`；不要假设它们为空。

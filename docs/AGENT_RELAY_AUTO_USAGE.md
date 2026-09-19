@@ -1,6 +1,6 @@
 # Agent Relay Auto 使用手册
 
-本文对应 `agent-relay-auto` Skill v1.6.2，说明初始化、任务接力、Agent 更换、暂停恢复、状态查询和最终验收。
+本文对应 `agent-relay-auto` Skill v1.6.3，说明初始化、任务接力、Agent 更换、暂停恢复、状态查询和最终验收。
 
 ## 1. 初始化仓库
 
@@ -180,6 +180,8 @@ Skill 必须先在对话中逐个确认三个角色的 `participant_id`、Agent�
 配置完成后，Skill 会展示三角色摘要供用户确认，并单独询问是否安装和启动；只有用户明确同意且 `configure_runtime.py inspect` 返回 `ready_to_start: true`，才会安装 macOS launchd Runner、注册当前项目并启动服务。缺少配置时不会让用户自行寻找或配置所谓的 Adapter 工厂。
 
 自动模式目前支持 Codex、OpenCode 和 Claude Code 的非交互适配器；其他 Agent 继续使用手动接力。自动模式下不同项目独立并行，同一项目第一版只运行一个活动任务。
+
+自动交接后，当前角色只报告 Runner 正在启动下一角色并等待结果，不要求用户打开下一窗口或输入“继续”。`Runner 状态` 会区分健康运行、项目配置阻塞、服务未加载和 launchd 崩溃循环；单个项目故障不会停止其他项目。运行输出保存在 `.agent-relay-auto/runs/` 的截断、脱敏日志中。
 
 ```text
 $agent-relay-auto Runner 状态

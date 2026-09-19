@@ -28,6 +28,24 @@ class ProcessManagerTests(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         self.assertIn("fake-agent-start", result.stdout)
 
+    def test_large_stream_is_drained_without_deadlock_and_keeps_tail(self):
+        fixture = Path(__file__).resolve().parent / "fixtures/fake_agent_cli.py"
+        manager = process_manager.ProcessManager(output_limit_chars=128 * 1024)
+        managed = manager.start(
+            (sys.executable, str(fixture), "--output-bytes", str(2 * 1024 * 1024)),
+            Path.cwd(),
+            "run-large",
+        )
+        deadline = time.time() + 5
+        result = None
+        while time.time() < deadline and result is None:
+            result = manager.poll(managed)
+            time.sleep(0.01)
+        self.assertIsNotNone(result)
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("fake-agent-finish", result.stdout)
+        self.assertLessEqual(len(result.stdout), 128 * 1024)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,6 +2,16 @@
 
 All notable changes to Agent Relay Auto are documented here. Project Role Workflow and Agent Relay are legacy names retained only for migration history.
 
+## [1.6.3] - 2026-09-19
+
+- Made automatic handoffs wait for Runner results instead of instructing users to open the next role manually.
+- Added per-project Runner fault isolation so one invalid or unreadable repository cannot stop other registered projects.
+- Added bounded concurrent stdout/stderr draining and project-local redacted run logs to prevent Codex JSONL pipe deadlocks.
+- Added durable run finalization for adapters without a lifecycle callback and `CHANGES_REQUESTED` dispatch back to Implementer.
+- Added Codex non-Git and approved non-interactive execution flags.
+- Added launchd `HOME`, `CODEX_HOME`, and executable `PATH` configuration.
+- Made Runner status distinguish healthy execution, project configuration blocks, unloaded services, and launchd crash loops.
+
 ## [1.6.2] - 2026-09-19
 
 - Added a mandatory conversational configuration gate before Runner installation or startup.

@@ -128,9 +128,9 @@ For the full lifecycle, see the [English usage guide](docs/AGENT_RELAY_AUTO_USAG
 
 ## Clear boundaries
 
-Agent Relay Auto is deliberately small. It is not a scheduler, a permissions system, a Git replacement, a distributed lock, or an automatic deployment service.
+Agent Relay Auto is deliberately small. It is not a permissions system, a Git replacement, a distributed lock, or an automatic deployment service.
 
-- Files do not wake another Agent automatically; the user opens the next tool and continues the relay.
+- In manual mode the user opens the next tool; in automatic mode Runner starts the next role from a valid state transition.
 - The helper lock protects coordination state in one checkout, not product code or multiple machines.
 - Git synchronization, merges, releases, and deployment remain explicit human-authorized operations.
 - `DONE` means task acceptance only.

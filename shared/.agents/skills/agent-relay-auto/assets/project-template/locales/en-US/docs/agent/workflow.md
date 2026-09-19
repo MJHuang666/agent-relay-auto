@@ -25,7 +25,7 @@ Before changing product code, read `STATE.md.subagent_policy`. If it is `UNSELEC
 
 ## Handoff
 
-Finish the role deliverable, append progress, update STATE (the handoff commit point), clear the writer session, and tell the user which tool should receive `continue`. Files do not wake another tool automatically.
+Finish the role deliverable, append progress, update STATE (the handoff commit point), and clear the writer session. With `mode: automatic`, Runner starts the next role and the current role reports that it is waiting for the result; it must not ask the user to open another window or type `continue`. Ask for manual continuation only with `mode: manual`, an explicitly stopped Runner, or a visible `BLOCKED` state that requires user action.
 
 ## Agent Replacement
 

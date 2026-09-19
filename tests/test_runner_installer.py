@@ -24,6 +24,10 @@ class RunnerInstallerTests(unittest.TestCase):
             self.assertTrue((root / "data/current").is_symlink())
             plist = (root / "launch-agents/com.agent-relay-auto.runner.plist").read_text(encoding="utf-8")
             self.assertNotIn("~/", plist)
+            self.assertIn("<key>HOME</key>", plist)
+            self.assertIn("<key>CODEX_HOME</key>", plist)
+            self.assertIn("<key>PATH</key>", plist)
+            self.assertIn("/Applications/ChatGPT.app/Contents/Resources", plist)
 
     def test_non_darwin_install_is_rejected_but_dry_run_describes_it(self):
         with tempfile.TemporaryDirectory() as directory:

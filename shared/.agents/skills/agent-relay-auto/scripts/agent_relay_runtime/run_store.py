@@ -83,7 +83,13 @@ class RunStore:
         path = self._run_path(run_id)
         metadata_path = path / "metadata.json"
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-        metadata.update({"exit_code": exit_code, "finished_at": datetime.now(timezone.utc).isoformat()})
+        metadata.update(
+            {
+                "status": "finished",
+                "exit_code": exit_code,
+                "finished_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
         metadata_path.write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
         usage_payload = dict(usage) if usage is not None else {"status": "unavailable"}
         (path / "usage.json").write_text(json.dumps(usage_payload, indent=2) + "\n", encoding="utf-8")

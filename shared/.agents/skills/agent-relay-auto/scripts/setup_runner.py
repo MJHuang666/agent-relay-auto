@@ -10,6 +10,7 @@ import os
 import platform as platform_module
 import shutil
 import tempfile
+from html import escape
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -50,11 +51,35 @@ class RunnerInstaller:
         runner = self.current_path / "scripts/agent_relay_runner.py"
         log_root = self.paths.launch_agents.parent / "Logs" / "AgentRelay"
         registry = self.paths.config_root / "projects.json"
+        home = Path.home()
+        codex_home = Path(os.environ.get("CODEX_HOME", home / ".codex"))
+        discovered_codex = shutil.which("codex")
+        path_entries = [
+            str(Path(discovered_codex).resolve().parent) if discovered_codex else "",
+            str(home / ".local/node/node-v22.14.0-darwin-arm64/bin"),
+            "/Applications/ChatGPT.app/Contents/Resources",
+            "/usr/local/bin",
+            "/opt/homebrew/bin",
+            "/usr/bin",
+            "/bin",
+            "/usr/sbin",
+            "/sbin",
+        ]
+        path_entries = [entry for entry in path_entries if entry]
+        for entry in os.environ.get("PATH", "").split(os.pathsep):
+            if entry and entry not in path_entries:
+                path_entries.append(entry)
+        runner_path = os.pathsep.join(path_entries)
         return f'''<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>Label</key><string>com.agent-relay-auto.runner</string>
 <key>ProgramArguments</key><array><string>/usr/bin/python3</string><string>{runner}</string><string>--registry</string><string>{registry}</string></array>
+<key>EnvironmentVariables</key><dict>
+<key>HOME</key><string>{escape(str(home))}</string>
+<key>CODEX_HOME</key><string>{escape(str(codex_home))}</string>
+<key>PATH</key><string>{escape(runner_path)}</string>
+</dict>
 <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
 <key>StandardOutPath</key><string>{log_root / 'runner.log'}</string>
 <key>StandardErrorPath</key><string>{log_root / 'runner.error.log'}</string>

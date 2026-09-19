@@ -31,6 +31,10 @@ def main(argv=None) -> int:
         if args.once:
             decisions = runner.run_once()
             print(json.dumps([decision.__dict__ for decision in decisions], ensure_ascii=False))
+            project_errors = [decision.detail for decision in decisions if decision.action == "project_error"]
+            if project_errors:
+                print("Agent Relay Auto project error: " + " | ".join(project_errors), file=sys.stderr)
+                return 2
             return 0
         runner.serve(poll_interval_seconds=args.poll_interval)
         return 0

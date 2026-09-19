@@ -9,6 +9,21 @@ COMPATIBILITY_SHIM = ROOT / "compat/project-role-workflow/SKILL.md"
 
 
 class AgentRelayContractTests(unittest.TestCase):
+    def test_automatic_handoff_does_not_instruct_manual_continue(self):
+        skill = (ROOT / "shared/.agents/skills/agent-relay-auto/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("automatic mode", skill.lower())
+        self.assertIn("must not ask the user to open the next role", skill.lower())
+        workflow_documents = (
+            ROOT / "shared/docs/agent/workflow.md",
+            CANONICAL / "assets/project-template/shared/docs/agent/workflow.md",
+            CANONICAL / "assets/project-template/locales/zh-CN/docs/agent/workflow.md",
+            CANONICAL / "assets/project-template/locales/en-US/docs/agent/workflow.md",
+        )
+        for document in workflow_documents:
+            text = document.read_text(encoding="utf-8").lower()
+            self.assertIn("mode: automatic", text, document)
+            self.assertIn("runner", text, document)
+
     def test_canonical_skill_identity(self):
         skill = CANONICAL / "SKILL.md"
         self.assertTrue(skill.is_file())

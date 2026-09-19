@@ -23,3 +23,13 @@ The Runner is the consumer of role configuration, not the place where users repa
 `configure_runtime.py inspect` must report `complete: true`. `runnerctl.py start` performs the same validation before it registers the project or invokes launchctl. Missing policies, placeholder models, unsupported automatic tools, and participant mismatches stop with a role-specific message.
 
 The service entry uses the project Adapter factory in both `--once` and persistent modes. The factory creates a role router for Codex, OpenCode, and Claude Code, and the router applies the model and reasoning setting selected during initialization. Users never configure an “Adapter factory” directly.
+
+## Health and Isolation
+
+`runnerctl.py status` reports project configuration and launchd health separately. A registered service in `spawn scheduled` with `active count = 0` or a non-zero last exit code is `failed`, not `running`; an incomplete project is `blocked` even when the shared service is healthy. Inspect the returned stderr log path for permission and executable failures.
+
+Each repository has an independent Supervisor. A missing policy, unreadable external volume, or damaged state produces a project-scoped error and must not stop later registered repositories. Automatic handoff messages say that Runner is starting the next role; they do not ask the user to open another window or type `continue`.
+
+The launchd installer records `HOME`, `CODEX_HOME`, and a PATH containing the discovered Codex executable. macOS Full Disk Access cannot be granted programmatically. If launchd cannot read a project on an external volume, startup health remains failed/blocked and the user must grant access to the Python executable shown in the plist before restarting.
+
+Agent stdout and stderr are drained concurrently into a bounded in-memory tail, redacted, and persisted under `.agent-relay-auto/runs/<task>/<run>/`. This prevents continuous JSONL output from filling an unread pipe while retaining enough diagnostics for recovery.

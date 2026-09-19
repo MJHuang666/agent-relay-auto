@@ -121,7 +121,14 @@ class CodexAdapter:
 
     def build_command(self, request: LaunchRequest) -> tuple[str, ...]:
         prompt = f"Read docs/agent/tasks/{request.task_id}/STATE.md and perform the {request.role} stage."
-        arguments = ["exec", "--json", "--model", request.model]
+        arguments = [
+            "exec",
+            "--json",
+            "--skip-git-repo-check",
+            "--dangerously-bypass-approvals-and-sandbox",
+            "--model",
+            request.model,
+        ]
         if request.reasoning:
             arguments.extend(["--config", f'model_reasoning_effort="{request.reasoning}"'])
         arguments.extend(["--cd", str(request.repo), prompt])
