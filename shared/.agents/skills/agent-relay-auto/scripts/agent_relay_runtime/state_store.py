@@ -81,6 +81,30 @@ class StageEvidence:
     report_ref: str | None = None
 
 
+@dataclass(frozen=True)
+class RunFinalization:
+    action: str
+    task_id: str
+    run_id: str
+    input_revision: int
+    output_revision: int
+    idempotent_replay: bool = False
+
+
+def classify_run_result(
+    start_status: str, current_status: str, exit_code: int, termination_reason: str
+) -> str:
+    if current_status != start_status:
+        return "completed"
+    if termination_reason == "timeout":
+        return "timeout"
+    if termination_reason == "interrupted":
+        return "interrupted"
+    if exit_code == 0:
+        return "protocol_failure"
+    return "agent_failure"
+
+
 def now_iso() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
 
@@ -141,8 +165,9 @@ _ROLE_EVENTS = {
 
 
 class StateStore:
-    def __init__(self, repo: Path):
+    def __init__(self, repo: Path, max_agent_retries: int = 1):
         self.repo = Path(repo).resolve()
+        self.max_agent_retries = max_agent_retries
 
     def _project_path(self) -> Path:
         return self.repo / "docs/agent/PROJECT_STATUS.md"
@@ -294,24 +319,63 @@ class StateStore:
             status = str(state.get("status"))
             return TransitionResult(key.task_id, status, status, key.expected_revision, new_revision)
 
-    def finish_run(self, task_id: str, run_id: str, exit_code: int) -> TransitionResult:
+    def finish_run(
+        self,
+        task_id: str,
+        run_id: str,
+        exit_code: int,
+        start_status: str | None = None,
+        termination_reason: str = "exit",
+    ) -> RunFinalization:
         with _state_lock(self.repo, "finish-run"):
             path, text, state = self._read_task(task_id)
-            if state.get("run_id") != run_id:
-                raise StateStoreError(f"run identity mismatch: expected {run_id}, actual {state.get('run_id')}")
             input_revision = int(state.get("revision"))
-            output_revision = input_revision + 1
-            self._write_state(
-                path,
-                text,
-                {
-                    ("run_status",): "finished",
-                    ("run_exit_code",): exit_code,
-                    ("run_id",): None,
-                    ("writer_session",): None,
-                    ("revision",): output_revision,
-                    ("updated_at",): now_iso(),
-                },
+            if state.get("last_finished_run_id") == run_id:
+                return RunFinalization(
+                    str(state.get("last_run_action") or "already_finalized"),
+                    task_id,
+                    run_id,
+                    input_revision,
+                    input_revision,
+                    True,
+                )
+            if state.get("run_id") != run_id:
+                raise StateStoreError(
+                    f"run identity mismatch: expected {run_id}, actual {state.get('run_id')}"
+                )
+            current_status = str(state.get("status"))
+            # The legacy three-argument call means the caller already handled
+            # the role protocol and only needs the lease released.
+            result = (
+                "completed"
+                if start_status is None
+                else classify_run_result(start_status, current_status, exit_code, termination_reason)
             )
-            status = str(state.get("status"))
-            return TransitionResult(task_id, status, status, input_revision, output_revision)
+            failures = int(state.get("agent_failure_count", 0))
+            action = "completed"
+            values: dict[tuple[str, ...], object] = {
+                ("run_status",): "finished",
+                ("run_exit_code",): exit_code,
+                ("last_finished_run_id",): run_id,
+                ("last_run_result",): result,
+                ("run_id",): None,
+                ("writer_session",): None,
+            }
+            if result != "completed":
+                failures += 1
+                values[("agent_failure_count",)] = failures
+                if failures <= self.max_agent_retries:
+                    action = "retry"
+                    values[("run_status",)] = "idle"
+                else:
+                    action = "blocked"
+                    values[("status",)] = "BLOCKED"
+                    detail = "no_handoff" if result == "protocol_failure" else result
+                    values[("blocked_reason",)] = f"{result}: {detail}"
+                    values[("unblock_condition",)] = "inspect run logs and resume or replace the assigned Agent"
+            values[("last_run_action",)] = action
+            output_revision = input_revision + 1
+            values[("revision",)] = output_revision
+            values[("updated_at",)] = now_iso()
+            self._write_state(path, text, values)
+            return RunFinalization(action, task_id, run_id, input_revision, output_revision)

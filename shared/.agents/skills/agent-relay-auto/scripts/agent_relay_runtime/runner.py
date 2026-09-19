@@ -23,12 +23,14 @@ try:
     from .registry import ProjectRegistry
     from .supervisor import ProjectSupervisor, SupervisorDecision
     from .notifications import MacOSNotifier
+    from .config import load_runtime_config
 except ImportError:
     ProjectRegistry = _sibling("registry").ProjectRegistry
     _supervisor_module = _sibling("supervisor")
     ProjectSupervisor = _supervisor_module.ProjectSupervisor
     SupervisorDecision = _supervisor_module.SupervisorDecision
     MacOSNotifier = _sibling("notifications").MacOSNotifier
+    load_runtime_config = _sibling("config").load_runtime_config
 
 
 class RelayRunner:
@@ -42,7 +44,11 @@ class RelayRunner:
 
     def _supervisor(self, repo: Path) -> ProjectSupervisor:
         if repo not in self.supervisors:
-            self.supervisors[repo] = ProjectSupervisor(repo, self.adapter_factory(repo))
+            self.supervisors[repo] = ProjectSupervisor(
+                repo,
+                self.adapter_factory(repo),
+                runtime=load_runtime_config(repo),
+            )
         return self.supervisors[repo]
 
     def run_once(self):

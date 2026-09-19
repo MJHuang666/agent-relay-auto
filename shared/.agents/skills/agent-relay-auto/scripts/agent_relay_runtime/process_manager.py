@@ -116,7 +116,7 @@ class ProcessManager:
             text=True,
             start_new_session=True,
         )
-        return ManagedProcess(
+        managed = ManagedProcess(
             process,
             run_id,
             process.pid,
@@ -126,6 +126,16 @@ class ProcessManager:
             (),
             run_dir,
         )
+        process_record = run_dir / "process.json"
+        deadline = time.monotonic() + 2
+        while not process_record.is_file() and process.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.005)
+        if not process_record.is_file():
+            if process.poll() is None:
+                process.terminate()
+                process.wait(timeout=2)
+            raise RuntimeError(f"run worker did not publish process identity: {run_id}")
+        return managed
 
     @staticmethod
     def _result(managed: ManagedProcess) -> ProcessResult:
@@ -164,6 +174,10 @@ class ProcessManager:
         try:
             managed.process.wait(timeout=grace_seconds)
         except subprocess.TimeoutExpired:
-            managed.process.terminate()
-            managed.process.wait()
+            os.killpg(process_group, signal.SIGTERM)
+            try:
+                managed.process.wait(timeout=grace_seconds)
+            except subprocess.TimeoutExpired:
+                os.killpg(process_group, signal.SIGKILL)
+                managed.process.wait(timeout=grace_seconds)
         return self._result(managed)

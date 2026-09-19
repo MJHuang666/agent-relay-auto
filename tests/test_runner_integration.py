@@ -96,8 +96,11 @@ class RunnerIntegrationTests(unittest.TestCase):
             self.assertIn("external volume denied", decisions[0].detail)
             self.assertTrue(decisions[0].report)
             self.assertEqual(decisions[1].action, "started")
-            time.sleep(0.15)
+            deadline = time.time() + 2
             repeated = runner.run_once()
+            while repeated[1].action in {"already_running", "started"} and time.time() < deadline:
+                time.sleep(0.01)
+                repeated = runner.run_once()
             self.assertFalse(repeated[0].report)
             self.assertEqual(len([event for event in notifier.events if event["state"] == "PROJECT_ERROR"]), 1)
 

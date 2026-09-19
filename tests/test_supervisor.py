@@ -55,6 +55,17 @@ class SupervisorTests(unittest.TestCase):
             "current_role: planner", "current_role: implementer"
         ).replace("current_participant: planner-a", "current_participant: impl-a")
 
+    @staticmethod
+    def wait_for_result(supervisor, timeout=3):
+        deadline = time.time() + timeout
+        decision = None
+        while time.time() < deadline:
+            decision = supervisor.tick()
+            if decision.action not in {"already_running", "started"}:
+                return decision
+            time.sleep(0.01)
+        raise AssertionError(f"background run did not finish: {decision}")
+
     def test_same_revision_starts_only_one_process(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
@@ -70,8 +81,7 @@ class SupervisorTests(unittest.TestCase):
             second = supervisor.tick()
             self.assertEqual(first.action, "started")
             self.assertEqual(second.action, "already_running")
-            time.sleep(0.35)
-            supervisor.tick()
+            self.wait_for_result(supervisor)
 
     def test_changes_requested_is_dispatched_to_implementer(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -88,8 +98,7 @@ class SupervisorTests(unittest.TestCase):
             supervisor = supervisor_module.ProjectSupervisor(repo, adapter)
             decision = supervisor.tick()
             self.assertEqual(decision.action, "started")
-            time.sleep(0.15)
-            supervisor.tick()
+            self.wait_for_result(supervisor)
 
     def test_process_exit_is_finished_and_output_is_persisted_without_adapter_callback(self):
         class AdapterWithoutCallback:
@@ -108,16 +117,10 @@ class SupervisorTests(unittest.TestCase):
             (task / "STATE.md").write_text(self.implementing_state(), encoding="utf-8")
             supervisor = supervisor_module.ProjectSupervisor(repo, AdapterWithoutCallback())
             started = supervisor.tick()
-            deadline = time.time() + 3
-            finished = None
-            while time.time() < deadline:
-                finished = supervisor.tick()
-                if finished.action == "finished":
-                    break
-                time.sleep(0.01)
-            self.assertEqual(finished.action, "finished")
+            finished = self.wait_for_result(supervisor)
+            self.assertEqual(finished.action, "retry_scheduled")
             state = (task / "STATE.md").read_text(encoding="utf-8")
-            self.assertIn("run_status: finished", state)
+            self.assertIn("run_status: idle", state)
             self.assertIn("run_id: null", state)
             stdout_log = repo / ".agent-relay-auto/runs/TASK-001" / started.run_id / "stdout.log"
             self.assertIn("fake-agent-finish", stdout_log.read_text(encoding="utf-8"))

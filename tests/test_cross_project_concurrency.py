@@ -63,9 +63,14 @@ class CrossProjectConcurrencyTests(unittest.TestCase):
             started = time.monotonic()
             self.assertEqual(supervisors[0].tick().action, "started")
             self.assertEqual(supervisors[1].tick().action, "started")
-            time.sleep(0.25)
-            supervisors[0].tick()
-            supervisors[1].tick()
+            pending = set(range(len(supervisors)))
+            deadline = time.monotonic() + 2
+            while pending and time.monotonic() < deadline:
+                for index in tuple(pending):
+                    if supervisors[index].tick().action not in {"already_running", "started"}:
+                        pending.remove(index)
+                time.sleep(0.01)
+            self.assertFalse(pending)
             self.assertLess(time.monotonic() - started, 0.6)
 
 
