@@ -38,6 +38,17 @@ class RunStoreTests(unittest.TestCase):
             metadata = json.loads((run_path / "metadata.json").read_text(encoding="utf-8"))
             self.assertEqual(metadata["status"], "finished")
 
+    def test_reads_durable_process_exit_and_protocol_records(self):
+        with tempfile.TemporaryDirectory() as directory:
+            store = run_store.RunStore(Path(directory))
+            run_path = store.create({"task_id": "TASK-001", "run_id": "run-001"})
+            (run_path / "process.json").write_text('{"run_id":"run-001","pid":12}\n')
+            (run_path / "exit.json").write_text('{"run_id":"run-001","exit_code":0}\n')
+            self.assertEqual(store.read_process("run-001")["pid"], 12)
+            self.assertEqual(store.read_exit("run-001")["exit_code"], 0)
+            store.mark_protocol_result("run-001", "completed")
+            self.assertEqual(json.loads((run_path / "protocol.json").read_text())["result"], "completed")
+
 
 if __name__ == "__main__":
     unittest.main()

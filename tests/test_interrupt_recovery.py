@@ -23,7 +23,7 @@ class InterruptRecoveryTests(unittest.TestCase):
     def test_reconcile_rejects_pid_reuse_and_unknown_remote(self):
         manager = recovery.RecoveryManager(process_manager.ProcessManager())
         result = manager.reconcile({"pid": 123, "process_started_at": 10.0, "run_id": "run-1"}, process_exists=True, observed_started_at=11.0)
-        self.assertEqual(result.status, "unknown")
+        self.assertEqual(result.status, "blocked")
         remote = manager.reconcile({"pid": None, "process_started_at": None, "run_id": "run-2", "remote": True}, process_exists=False, observed_started_at=None)
         self.assertEqual(remote.status, "blocked")
 

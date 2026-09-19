@@ -24,14 +24,25 @@ class RecoveryManager:
     def interrupt(self, managed, grace_seconds: float = 30.0):
         return self.process_manager.interrupt(managed, grace_seconds)
 
-    def reconcile(self, run: dict, *, process_exists: bool, observed_started_at: float | None) -> ReconcileResult:
+    def reconcile(
+        self,
+        run: dict,
+        *,
+        process_exists: bool,
+        observed_started_at: float | None,
+        exit_record: dict | None = None,
+    ) -> ReconcileResult:
+        if exit_record is not None:
+            if exit_record.get("run_id") != run.get("run_id"):
+                return ReconcileResult("blocked", "exit record run identity mismatch")
+            return ReconcileResult("finish", str(exit_record.get("termination_reason", "exit")))
         if process_exists and run.get("pid") is not None:
             if observed_started_at == run.get("process_started_at"):
                 return ReconcileResult("monitor", "pid, process start time, and run_id match")
-            return ReconcileResult("unknown", "PID may have been reused")
+            return ReconcileResult("blocked", "PID identity mismatch; PID may have been reused")
         if run.get("remote"):
             return ReconcileResult("blocked", "remote task may still be running")
-        return ReconcileResult("restart", "local process is confirmed stopped")
+        return ReconcileResult("interrupted", "worker stopped without exit record")
 
     def resume(self, mode: str, session_id: str | None = None) -> str:
         if mode == RecoveryMode.NATIVE_SESSION and not session_id:
