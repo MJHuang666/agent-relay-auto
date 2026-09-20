@@ -76,7 +76,8 @@ def build_reporting_prompt(request: WakeRequest) -> str:
         f"wake_key: {request.wake_key}\n"
         "1. Validate task_id, revision, participant_id, and Reviewer PASS.\n"
         "2. Read plan, implementation, tests, review, and delivery evidence.\n"
-        "3. If complete, write the final delivery report and run report-done with this wake_key.\n"
+        "3. If complete, write the final delivery report and run report-done with this wake_key "
+        "and STATE.delivery_id as --review-delivery-id.\n"
         "4. If evidence or authority conflicts, record the reason and move to BLOCKED; never guess completion.\n"
         "5. Do not edit product code or perform merge, push, release, or deploy.\n"
     )

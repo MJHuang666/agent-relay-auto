@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,7 +30,8 @@ class WakeKey:
             raise WakeStoreError("revision must be a non-negative integer")
 
     def value(self) -> str:
-        return f"{self.task_id}:{self.revision}:{self.participant_id}:{self.conversation_id}"
+        conversation_hash = hashlib.sha256(self.conversation_id.encode("utf-8")).hexdigest()[:16]
+        return f"{self.task_id}:{self.revision}:{self.participant_id}:{conversation_hash}"
 
 
 class WakeEventStore:

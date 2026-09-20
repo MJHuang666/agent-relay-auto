@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import os
 import socket
@@ -307,7 +308,8 @@ class StateStore:
             if existing.get("wake_key"):
                 return expected_revision, str(existing["wake_key"])
             output_revision = expected_revision + 1
-            wake_key = f"{task_id}:{output_revision}:{participant_id}:{conversation_id}"
+            conversation_hash = hashlib.sha256(conversation_id.encode("utf-8")).hexdigest()[:16]
+            wake_key = f"{task_id}:{output_revision}:{participant_id}:{conversation_hash}"
             self._write_state(
                 path,
                 text,

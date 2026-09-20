@@ -48,11 +48,15 @@ class ReportingCoordinator:
         return _markdown.parse_fenced_yaml(path.read_text(encoding="utf-8"))
 
     @staticmethod
-    def _receipt(event):
+    def _receipt(event, channel):
         return _base.SubmissionReceipt(
-            str(event["wake_key"]), str(event["tool"]), str(event["conversation_id"]),
+            str(event["wake_key"]), str(event["tool"]), channel.conversation_id,
             str(event["receipt_id"]), "submitted",
         )
+
+    @staticmethod
+    def _masked_conversation(conversation_id: str) -> str:
+        return f"***{conversation_id[-6:]}"
 
     def tick(self, task_id: str) -> ReportingDecision:
         try:
@@ -81,9 +85,24 @@ class ReportingCoordinator:
                 )
                 self.events.append({
                     "wake_key": key, "status": "submitted", "attempt": 1,
-                    "tool": receipt.tool, "conversation_id": receipt.conversation_id,
+                    "tool": receipt.tool,
+                    "conversation_id_masked": self._masked_conversation(receipt.conversation_id),
                     "receipt_id": receipt.remote_id,
                 })
+                completed_state = self._state(task_id)
+                if completed_state.get("status") == "DONE":
+                    try:
+                        adapter.present(channel)
+                        presentation = "presented"
+                    except Exception as error:
+                        presentation = f"presentation_failed: {type(error).__name__}: {error}"
+                    self.events.append({
+                        "wake_key": key,
+                        "status": "completed",
+                        "attempt": 1,
+                        "presentation": presentation,
+                    })
+                    return ReportingDecision("report_completed", task_id, key, presentation)
                 self.store.set_reporting_phase(task_id, wake_revision, key, "submitted")
                 return ReportingDecision("report_submitted", task_id, key)
             if latest["status"] == "submitting":
@@ -93,14 +112,15 @@ class ReportingCoordinator:
                     return ReportingDecision("blocked", task_id, key, "ambiguous remote submission")
                 self.events.append({
                     "wake_key": key, "status": "submitted", "attempt": latest.get("attempt", 1),
-                    "tool": receipt.tool, "conversation_id": receipt.conversation_id,
+                    "tool": receipt.tool,
+                    "conversation_id_masked": self._masked_conversation(receipt.conversation_id),
                     "receipt_id": receipt.remote_id,
                 })
                 self.store.set_reporting_phase(task_id, wake_revision, key, "submitted")
             submitted = self.events.find_submission(key)
             if submitted is None:
                 return ReportingDecision("blocked", task_id, key, "submission receipt is unavailable")
-            observed = adapter.observe(self._receipt(submitted))
+            observed = adapter.observe(self._receipt(submitted, channel))
             if observed.status == "completed":
                 adapter.present(channel)
                 self.events.append({"wake_key": key, "status": "completed", "attempt": submitted.get("attempt", 1)})

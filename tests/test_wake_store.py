@@ -19,7 +19,8 @@ class WakeStoreTests(unittest.TestCase):
                 {"wake_key": key.value(), "status": "submitted", "attempt": 1, "receipt_id": "turn_9"}
             )
 
-            self.assertEqual(key.value(), "TASK-001:18:planner-codex:thr_1")
+            self.assertTrue(key.value().startswith("TASK-001:18:planner-codex:"))
+            self.assertNotIn("thr_1", key.value())
             self.assertEqual(store.latest(key.value())["status"], "submitted")
             self.assertEqual(store.find_submission(key.value())["receipt_id"], "turn_9")
 
