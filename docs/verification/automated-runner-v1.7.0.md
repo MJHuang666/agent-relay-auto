@@ -14,14 +14,15 @@ Date: 2026-09-20
 
 ## Installed State
 
-- Personal Codex Skill source and installed copy each contained 148 files at synchronization time.
+- Personal Codex Skill source and installed copy each contain 148 files.
 - Runner `current` points to `/Users/mj/.local/share/agent-relay-auto/versions/1.7.0`.
+- The installed `MANIFEST.sha256.json` contains 148 entries and exactly matches the 148 source file hashes.
 - launchd service reached `state = running`, `active count = 1`, with a v1.7 workflow-aware status response.
 - Startup verification found and fixed a transient `xpcproxy` health-check race; the controller now waits briefly for stable health and still fails immediately on a crash loop.
 
 ## Upgrade Preflight Evidence
 
-A final manifest refresh was intentionally refused because the already-registered repository `/Volumes/HP P900/mjwork/test-auto-relay2` had live run `run-ee8cf7b100f1`. The run was observed read-only and remained active for at least 30 seconds. It was not interrupted, killed, repaired, unregistered, or modified. The installed v1.7 runtime remains active; regenerate its manifest only after that run finishes naturally.
+A manifest refresh was initially and intentionally refused because the already-registered repository `/Volumes/HP P900/mjwork/test-auto-relay2` had live run `run-ee8cf7b100f1`. The run was observed read-only and remained active for at least 30 seconds. It was not interrupted, killed, repaired, or unregistered. After it finished naturally and the project had no active run, the same upgrade succeeded and the installed manifest matched the source exactly.
 
 This refusal is a successful safety check: installation does not replace runtime files while a registered project has a live background run.
 
