@@ -28,6 +28,7 @@ def create_planner_wake_factory(
         "codex": _adapter("codex", "CodexPlannerWakeAdapter"),
         "opencode": _adapter("opencode", "OpenCodePlannerWakeAdapter"),
         "claude-code": _adapter("claude_code", "ClaudeCodePlannerWakeAdapter"),
+        "deepseek-harness": _adapter("deepseek_harness", "DeepSeekHarnessPlannerWakeAdapter"),
     }
 
     def build(tool: str) -> object:
