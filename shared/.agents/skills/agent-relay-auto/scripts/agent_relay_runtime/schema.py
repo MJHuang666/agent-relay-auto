@@ -101,3 +101,13 @@ def validate_task_state(data: Mapping[str, object]) -> None:
         value = data.get(field)
         if value is not None and (not isinstance(value, str) or not value):
             raise SchemaError(f"{field} must be null or a non-empty string")
+    reporting = data.get("reporting")
+    if reporting is not None:
+        if not isinstance(reporting, Mapping):
+            raise SchemaError("reporting must be a mapping")
+        phase = reporting.get("phase")
+        if phase not in {"pending", "submitted", "active", "completed", "failed", "presentation_failed"}:
+            raise SchemaError(f"unsupported reporting phase: {phase!r}")
+        wake_key = reporting.get("wake_key")
+        if not isinstance(wake_key, str) or not wake_key:
+            raise SchemaError("reporting.wake_key must be a non-empty string")

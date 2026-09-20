@@ -29,6 +29,17 @@ class RuntimeConfigTests(unittest.TestCase):
         self.assertEqual(limits.heartbeat_stale_seconds, 45)
         self.assertEqual(limits.interrupt_grace_seconds, 30)
 
+    def test_reporting_defaults_are_bounded(self):
+        reporting = config.RuntimeConfig.defaults().reporting
+        self.assertEqual(reporting.poll_interval_seconds, 45)
+        self.assertEqual(reporting.model_retry_limit, 1)
+        self.assertEqual(reporting.presentation_retry_limit, 3)
+        self.assertTrue(reporting.require_same_conversation)
+
+    def test_invalid_reporting_limits_are_rejected(self):
+        with self.assertRaises(config.ConfigError):
+            config.ReportingPolicy(poll_interval_seconds=0)
+
     def test_invalid_runtime_limits_are_rejected(self):
         with self.assertRaises(config.ConfigError):
             config.RuntimeLimits(agent_timeout_minutes=0)
@@ -54,12 +65,17 @@ class RuntimeConfigTests(unittest.TestCase):
                 "  agent_timeout_minutes: 5\n"
                 "  heartbeat_interval_seconds: 2\n"
                 "  heartbeat_stale_seconds: 8\n"
-                "  interrupt_grace_seconds: 3\n",
+                "  interrupt_grace_seconds: 3\n"
+                "reporting:\n"
+                "  poll_interval_seconds: 60\n"
+                "  model_retry_limit: 2\n",
                 encoding="utf-8",
             )
             runtime = config.load_runtime_config(repo)
             self.assertEqual(runtime.policy.max_agent_retries, 2)
             self.assertEqual(runtime.limits.agent_timeout_minutes, 5)
+            self.assertEqual(runtime.reporting.poll_interval_seconds, 60)
+            self.assertEqual(runtime.reporting.model_retry_limit, 2)
 
 
 if __name__ == "__main__":

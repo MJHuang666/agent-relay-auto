@@ -66,14 +66,37 @@ class RuntimeLimits:
 
 
 @dataclass(frozen=True)
+class ReportingPolicy:
+    enabled: bool = True
+    poll_interval_seconds: float = 45
+    reopen_original_conversation: bool = True
+    launch_application_if_closed: bool = True
+    require_same_conversation: bool = True
+    model_retry_limit: int = 1
+    presentation_retry_limit: int = 3
+    presentation_retry_interval_seconds: float = 10
+
+    def __post_init__(self):
+        for name in ("poll_interval_seconds", "presentation_retry_interval_seconds"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+                raise ConfigError(f"{name} must be a positive number")
+        for name in ("model_retry_limit", "presentation_retry_limit"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ConfigError(f"{name} must be a non-negative integer")
+
+
+@dataclass(frozen=True)
 class RuntimeConfig:
     policy: AutomationPolicy
     cost: CostControl
     limits: RuntimeLimits = field(default_factory=RuntimeLimits)
+    reporting: ReportingPolicy = field(default_factory=ReportingPolicy)
 
     @classmethod
     def defaults(cls) -> "RuntimeConfig":
-        return cls(AutomationPolicy(), CostControl(), RuntimeLimits())
+        return cls(AutomationPolicy(), CostControl(), RuntimeLimits(), ReportingPolicy())
 
     def snapshot(self) -> dict[str, Any]:
         return {
@@ -96,6 +119,16 @@ class RuntimeConfig:
                 "heartbeat_stale_seconds": self.limits.heartbeat_stale_seconds,
                 "interrupt_grace_seconds": self.limits.interrupt_grace_seconds,
             },
+            "reporting": {
+                "enabled": self.reporting.enabled,
+                "poll_interval_seconds": self.reporting.poll_interval_seconds,
+                "reopen_original_conversation": self.reporting.reopen_original_conversation,
+                "launch_application_if_closed": self.reporting.launch_application_if_closed,
+                "require_same_conversation": self.reporting.require_same_conversation,
+                "model_retry_limit": self.reporting.model_retry_limit,
+                "presentation_retry_limit": self.reporting.presentation_retry_limit,
+                "presentation_retry_interval_seconds": self.reporting.presentation_retry_interval_seconds,
+            },
         }
 
 
@@ -114,7 +147,7 @@ def _policy_sections(path: Path) -> dict[str, dict[str, object]]:
             if current:
                 sections.setdefault(current, {})
             continue
-        if indent != 2 or current not in {"automation", "cost_control", "runtime"}:
+        if indent != 2 or current not in {"automation", "cost_control", "runtime", "reporting"}:
             continue
         scalar: object = value.strip()
         if scalar in {"true", "false"}:
@@ -137,4 +170,5 @@ def load_runtime_config(repo: Path) -> RuntimeConfig:
         AutomationPolicy(**sections.get("automation", {})),
         CostControl(**sections.get("cost_control", {})),
         RuntimeLimits(**sections.get("runtime", {})),
+        ReportingPolicy(**sections.get("reporting", {})),
     )
