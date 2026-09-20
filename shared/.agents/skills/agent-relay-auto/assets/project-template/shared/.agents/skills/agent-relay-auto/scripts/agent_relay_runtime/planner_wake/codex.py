@@ -58,7 +58,7 @@ class CodexPlannerWakeAdapter:
         self.transport_factory = transport_factory or CodexAppServerTransport
 
     def probe(self, channel):
-        return _types.WakeCapabilities("verified", "verified", "experimental", "experimental")
+        return _types.WakeCapabilities("experimental", "experimental", "experimental", "experimental")
 
     def resume(self, channel):
         return None
@@ -84,7 +84,23 @@ class CodexPlannerWakeAdapter:
             transport.close()
 
     def observe(self, receipt):
-        return _types.ObservationResult("submitted")
+        transport = self.transport_factory()
+        try:
+            result = transport.request("thread/read", {"threadId": receipt.conversation_id, "includeTurns": True})
+            thread = result.get("thread", {})
+            if thread.get("id") != receipt.conversation_id:
+                raise RuntimeError("Codex observation returned a different thread")
+            turn = next((item for item in thread.get("turns", []) if item.get("id") == receipt.remote_id), None)
+            if turn is None:
+                return _types.ObservationResult("submitted", "turn is not visible yet")
+            status = str(turn.get("status", "submitted")).lower().replace("_", "")
+            if status in {"completed", "complete", "finished"}:
+                return _types.ObservationResult("completed")
+            if status in {"failed", "cancelled", "canceled"}:
+                return _types.ObservationResult("failed", status)
+            return _types.ObservationResult("active", status)
+        finally:
+            transport.close()
 
     def reconcile(self, channel, wake_key):
         transport = self.transport_factory()

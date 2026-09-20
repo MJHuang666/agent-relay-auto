@@ -33,7 +33,7 @@ class ClaudeCodePlannerWakeAdapter:
         self.command_runner = command_runner or _run
 
     def probe(self, channel):
-        return _types.WakeCapabilities("verified", "verified", "verified", "experimental")
+        return _types.WakeCapabilities("experimental", "experimental", "experimental", "experimental")
 
     def resume(self, channel):
         return None

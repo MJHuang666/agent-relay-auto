@@ -31,7 +31,7 @@ The Runner is the consumer of role configuration, not the place where users repa
 
 `configure_runtime.py inspect` must report `complete: true` and `ready_to_start: true`. It returns a masked Planner conversation ID, capability labels, 45-second interval, and retry limits. `runnerctl.py start` performs the same validation before it registers the project or invokes launchctl. Missing channels instruct the user to run `$agent-relay-auto continue` in the intended Planner conversation. Missing policies, placeholder models, unsupported automatic tools, and participant mismatches stop with a role-specific message.
 
-Planner wake support: Codex, OpenCode, and Claude Code have verified exact-session submission bridges; DeepSeek Harness ACP/TUI support is `static_only`/`experimental` until a real credentialed session passes. Cursor is not supported for original-window auto-reporting in this release.
+Planner wake support: Codex, OpenCode, and Claude Code have exact-session contract coverage but remain `experimental` until real authenticated session and UI checks pass. DeepSeek Harness ACP/TUI support is `static_only`/`experimental` until a real credentialed session passes. Cursor is not supported for original-window auto-reporting in this release.
 
 The service entry uses the project Adapter factory in both `--once` and persistent modes. The factory creates a role router for Codex, OpenCode, and Claude Code, and the router applies the model and reasoning setting selected during initialization. Users never configure an “Adapter factory” directly.
 

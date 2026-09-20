@@ -18,9 +18,9 @@
 
 | Planner Tool ID | Exact-session Submit | Original UI Reopen | End-to-end Status |
 |---|---|---|---|
-| `codex` | `verified` | `experimental` | `experimental` |
-| `opencode` | `verified` | `verified` | `experimental` |
-| `claude-code` | `verified` | `verified` | `experimental` |
+| `codex` | `experimental` | `experimental` | `experimental` |
+| `opencode` | `experimental` | `experimental` | `experimental` |
+| `claude-code` | `experimental` | `experimental` | `experimental` |
 | `deepseek-harness` | `static_only` | `experimental` | `static_only` |
 
 初始化将精确对话绑定写入本地忽略的 `.agent-relay-auto/planner-channel.json`，只显示遮罩 ID。`REPORTING` 由 45 秒默认轮询触发，正常闭环不要求用户输入 `continue`。`DONE` 仅代表验收，不授权 merge、push、release 或 deploy。

@@ -110,7 +110,7 @@ class PlannerReportingE2ETests(unittest.TestCase):
             self.assertEqual(planner.presented_conversation_id, "thread-repo")
             journal = (repo / ".agent-relay-auto/wake-events.jsonl").read_text(encoding="utf-8")
             self.assertNotIn("thread-repo", journal)
-            self.assertIn("***d-repo", journal)
+            self.assertIn("sha256:", journal)
 
     def test_two_runners_submit_one_wake_for_one_project(self):
         with tempfile.TemporaryDirectory() as directory:

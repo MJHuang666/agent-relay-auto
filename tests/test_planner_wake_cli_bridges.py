@@ -92,6 +92,25 @@ class PlannerWakeCliBridgeTests(unittest.TestCase):
         self.assertEqual(receipt.remote_id, "turn_existing")
         self.assertEqual(receipt.conversation_id, "thr_1")
 
+    def test_codex_observes_completed_turn_from_exact_thread(self):
+        transport = FakeCodexTransport(
+            "thr_1", "unused", turns=[{"id": "turn_9", "status": "completed"}]
+        )
+        adapter = codex.CodexPlannerWakeAdapter(transport_factory=lambda: transport)
+        receipt = base.SubmissionReceipt("wake-7", "codex", "thr_1", "turn_9", "submitted")
+        self.assertEqual(adapter.observe(receipt).status, "completed")
+
+    def test_static_probe_does_not_claim_real_session_verification(self):
+        channel = self.channel("codex", "thr_1")
+        for adapter in (
+            codex.CodexPlannerWakeAdapter(transport_factory=lambda: FakeCodexTransport("thr_1", "turn_9")),
+            opencode.OpenCodePlannerWakeAdapter(command_runner=RecordingRunner({})),
+            claude.ClaudeCodePlannerWakeAdapter(command_runner=RecordingRunner({})),
+        ):
+            capabilities = adapter.probe(channel)
+            self.assertNotEqual(capabilities.end_to_end_reporting, "verified")
+            self.assertNotEqual(capabilities.resume_original_conversation, "verified")
+
 
 if __name__ == "__main__":
     unittest.main()

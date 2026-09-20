@@ -177,6 +177,7 @@ class ReportingCoordinatorTests(unittest.TestCase):
         submitted = next(event for event in events if event["status"] == "submitted")
         self.assertNotEqual(submitted["receipt_id"], "thr-1")
         self.assertTrue(submitted["receipt_id"].startswith("sha256:"))
+        self.assertNotIn("thr-1", (repo / ".agent-relay-auto/wake-events.jsonl").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ This release adds project-local, exact-conversation Planner wake-up for automati
 
 ## Automated evidence
 
-- `python3 -m unittest discover -s tests -v`: **154 tests passed** after independent whole-branch review fixes.
+- `python3 -m unittest discover -s tests -v`: **156 tests passed** after independent whole-branch review fixes.
 - `python3 -m unittest tests.test_agent_relay_contract tests.shared_dot_agents_skill_loader -v`: **9 contract tests passed**.
 - `git diff --check`: passed before the documentation commit and is rerun at release completion.
 - Hybrid and reporting E2E coverage proves:
@@ -30,9 +30,9 @@ The tests below use controlled transports or fake Planner implementations. They 
 
 | Tool | Exact-session contract | Original UI reopen | End-to-end status | Evidence |
 |---|---|---|---|---|
-| Codex | `verified` | `experimental` | `experimental` | Controlled App Server transport verifies exact thread IDs, receipts, and deduplication; no real Desktop UI wake was run. |
-| OpenCode | `verified` | `verified` | `experimental` | Command contract verifies exact `--session` and no fork; the reporting E2E uses a fake Planner. |
-| Claude Code | `verified` | `verified` | `experimental` | Command contract verifies exact `--resume` and rejects mismatched sessions; the reporting E2E uses a fake Planner. |
+| Codex | `experimental` | `experimental` | `experimental` | Controlled App Server transport tests exact thread IDs, receipts, observation, reconciliation, and deduplication; no real Desktop UI wake was run. |
+| OpenCode | `experimental` | `experimental` | `experimental` | Command contract tests exact `--session` and no fork; the reporting E2E uses a fake Planner. |
+| Claude Code | `experimental` | `experimental` | `experimental` | Command contract tests exact `--resume` and rejects mismatched sessions; the reporting E2E uses a fake Planner. |
 | DeepSeek Harness | `static_only` | `experimental` | `static_only` | ACP bridge/state-machine tests pass; no `dsh` executable, `DSH_TEST_SESSION_ID`, or authenticated credential was available. |
 
 Only a tool whose four capability fields are all `verified` may be displayed as fully verified. No capability is upgraded on the strength of fake or static tests alone.
@@ -54,7 +54,7 @@ The already-running user launchd service and its two registered projects are del
 - Checksum: `dist/agent-relay-auto-skill-pack-v1.8.0.zip.sha256`
 - ZIP root: `agent-relay-auto-skill-pack/`
 - Entries: **303**
-- SHA-256: `1dc382d99b52dcc95131c09a7871cb721ab7f50d2924ec5ecadb4177779129d5`
+- SHA-256: `17656aab9a3d04f1bed529aa0b796fde2baf3ed5928d87adbb30a9415f57ccea`
 - Excludes `.git`, `.agent-relay-auto`, credentials, logs, `.DS_Store`, AppleDouble files, Python caches, and example active tasks.
 
 Final archive hash and installation manifest counts are verified during the release build and checksum checks.

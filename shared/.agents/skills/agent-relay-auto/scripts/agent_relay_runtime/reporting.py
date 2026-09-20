@@ -58,7 +58,8 @@ class ReportingCoordinator:
 
     @staticmethod
     def _masked_conversation(conversation_id: str) -> str:
-        return f"***{conversation_id[-6:]}"
+        digest = hashlib.sha256(conversation_id.encode("utf-8")).hexdigest()[:12]
+        return f"sha256:{digest}"
 
     @staticmethod
     def _safe_receipt_id(receipt, channel) -> str:
@@ -202,6 +203,17 @@ class ReportingCoordinator:
                     "wake_key": key, "status": "model_completed", "attempt": submitted.get("attempt", 1)
                 })
                 return self._present(task_id, key, channel, adapter, 1)
+            if observed.status == "failed":
+                attempt = int(submitted.get("attempt", 1))
+                self.events.append({
+                    "wake_key": key,
+                    "status": "model_failed",
+                    "attempt": attempt,
+                    "detail": observed.detail or "remote Planner turn failed",
+                })
+                if attempt > self.policy.model_retry_limit:
+                    return ReportingDecision("blocked", task_id, key, "Planner model retry limit reached")
+                return ReportingDecision("report_wake_pending", task_id, key, "Planner model retry scheduled")
             if observed.status == "active":
                 self.store.set_reporting_phase(task_id, wake_revision, key, "active")
             return ReportingDecision("report_active", task_id, key, observed.detail)

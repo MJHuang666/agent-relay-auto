@@ -22,9 +22,9 @@ DeepSeek Harness and OpenCode share `.agents/skills/agent-relay-auto/` as the si
 
 | Planner Tool ID | Exact-session Submit | Original UI Reopen | End-to-end Status |
 |---|---|---|---|
-| `codex` | `verified` | `experimental` | `experimental` |
-| `opencode` | `verified` | `verified` | `experimental` |
-| `claude-code` | `verified` | `verified` | `experimental` |
+| `codex` | `experimental` | `experimental` | `experimental` |
+| `opencode` | `experimental` | `experimental` | `experimental` |
+| `claude-code` | `experimental` | `experimental` | `experimental` |
 | `deepseek-harness` | `static_only` | `experimental` | `static_only` |
 
 Initialization writes the exact binding to ignored `.agent-relay-auto/planner-channel.json` and displays only a masked ID. `REPORTING` uses a 45-second default poll and does not require user `continue`. `DONE` is acceptance only; it does not authorize merge, push, release, or deploy.
