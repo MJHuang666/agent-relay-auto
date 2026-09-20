@@ -2,6 +2,8 @@
 
 This directory is the shared project context for every Agent. Read `PROJECT_STATUS.md`, skim `knowledge-index.md`, then read the active task `STATE.md` and `workflow.md` before working.
 
+> Automatic v1.8: after Reviewer PASS, Runner resumes the exact original Planner conversation for final reporting. The ignored local binding is `.agent-relay-auto/planner-channel.json`; status output masks its ID. The default poll interval is 45 seconds. Wake tools are `codex`, `opencode`, `claude-code`, and `deepseek-harness`, with `verified` / `experimental` / `static_only` / `unavailable` labels. Normal `REPORTING` needs no user `continue`, and Runner never writes `DONE` directly.
+
 ## Language
 
 `PROJECT_STATUS.md.language` is the project language. Use it for communication and all new requirements, plans, execution reports, reviews, progress records, decisions, and acceptance reports. Keep file names, YAML keys, status values, participant IDs, and delivery IDs stable.

@@ -9,7 +9,9 @@
 5. 执行：登记本次 writer_session，按角色权限工作；Implementer 改代码前必须完成子代理选择门；暂停时写检查点。
 6. 交接：完成正式交付物，追加 progress，更新 STATE，最后刷新总览缓存。
 
-交接行为取决于 `automation-policy.yaml`：`mode: automatic` 时 Planner 始终在前台与用户沟通，Runner 只在后台启动 Implementer 和 Reviewer。流程为“Planner 前台 → Implementer 后台 → Reviewer 后台 → Planner 前台总结 → DONE”。`PLANNING`、`REPORTING` 返回 `waiting_foreground_planner`；`WAITING_USER`、`BLOCKED` 也等待前台操作。最小化 Planner 不会中断已经运行的后台角色。
+交接行为取决于 `automation-policy.yaml`：`mode: automatic` 时 Planner 是用户交互入口，Runner 在后台启动 Implementer 和 Reviewer，随后恢复原 Planner 对话。流程为“Planner 前台 → Implementer 后台 → Reviewer 后台 → 原 Planner 对话自动汇报 → DONE”。`PLANNING` 返回 `waiting_foreground_planner`；`REPORTING` 不再等待用户输入 `continue`，Runner 默认每 45 秒检查并提交一次幂等唤醒。`WAITING_USER`、`BLOCKED` 仍等待用户操作。
+
+Planner 原对话绑定保存在本地忽略文件 `.agent-relay-auto/planner-channel.json`。唤醒工具为 `codex`、`opencode`、`claude-code`、`deepseek-harness`，能力状态只使用 `verified`、`experimental`、`static_only`、`unavailable`。Runner 不直接写 `DONE`；只有原 Planner 在核对 `wake_key`、Reviewer 证据和 `review_delivery_id` 后才能执行 `report-done`。
 
 后台角色必须分别通过 `implementation-done`、`verdict` 完成交接。仅退出进程不算完成；退出码为 0 但没有合法状态转换时记为 `protocol_failure: no_handoff`，按有限重试策略处理。运行证据保存在 `.agent-relay-auto/runs/`，默认 `heartbeat_stale_seconds: 45`。
 

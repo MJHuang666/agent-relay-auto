@@ -80,11 +80,13 @@ If no complete configuration exists, present defaults (`max_rework_rounds: 3`, `
 3. Ask for the model and tool-specific reasoning setting: Codex `reasoning_effort`, OpenCode `variant`, Claude Code `effort`.
 4. Mark a dynamically returned model `verified`; mark an explicitly entered stable ID `pending` until first launch validation.
 
-Automatic mode supports `codex`, `opencode`, and `claude-code`. A role bound to Cursor, WorkBuddy, ZCode, Trae, DeepSeek Harness, or a custom tool must remain manual unless a verified non-interactive adapter is added.
+Background automatic execution supports `codex`, `opencode`, and `claude-code`. Exact Planner wake supports `codex`, `opencode`, `claude-code`, and `deepseek-harness`; DeepSeek Harness remains `static_only` until a real credentialed session is verified.
 
 If configuration already exists, show the complete three-role participant/Agent/model/reasoning table and all reported problems. Offer Confirm or Modify only when the configuration is complete; any missing participant, placeholder/default model, unsupported automatic Agent, or damaged policy forces Modify.
 
-Show the proposed automation policy and role table one final time and obtain confirmation. Then ask separately whether to install and start the macOS launchd Runner. Apply all non-secret answers through `configure_runtime.py apply`, including that choice as `runner_confirmed`, and inspect again. If installation was accepted, require `ready_to_start: true`, install the versioned runtime, and run `runnerctl.py start --repo <repo>`; that command validates configuration again before registering the project or calling launchctl. Declining writes or keeps `mode: manual`. Never install first and ask the user to repair an Adapter factory or runtime policy afterward.
+Show the proposed automation policy and role table one final time and obtain confirmation. Register the exact current Planner conversation by passing `planner_channel.tool` and `planner_channel.conversation_id` to `configure_runtime.py apply`. The local ignored file `.agent-relay-auto/planner-channel.json` is the binding; never commit it or echo the full ID. Show the masked ID, project path, 45-second poll interval, retry limits, and capability labels returned by `inspect`. Existing projects without this binding must run `$agent-relay-auto continue` once in the intended Planner conversation before startup.
+
+Then ask separately whether to install and start the macOS launchd Runner. Apply all non-secret answers, including that choice as `runner_confirmed`, and inspect again. If installation was accepted, require `ready_to_start: true`, install the versioned runtime, and run `runnerctl.py start --repo <repo>`; that command validates configuration and the Planner channel before registering the project or calling launchctl. Declining writes or keeps `mode: manual`. Never install first and ask the user to repair an Adapter factory or runtime policy afterward.
 
 For each identity, create a Profile from `docs/agent/profiles/_templates/participant.md` and register the immutable `(participant_id, tool, role)` tuple in `docs/agent/role-bindings.md`. Do not infer these choices from the current tool or create a real task during initialization.
 
@@ -100,6 +102,7 @@ Before reporting success, verify:
 - local Markdown links resolve.
 - `scripts/workflow_state.py --repo <target> status` can read the initialized project when Python 3 is available.
 - automatic mode has explicit participant/model/reasoning values for all three roles; `configure_runtime.py inspect` reports `ready_to_start: true` before Runner installation.
+- automatic mode has an exact Planner channel, displayed only as a masked conversation ID, and reports one of `verified`, `experimental`, `static_only`, or `unavailable` for each capability.
 - when Runner installation was confirmed, `runnerctl.py status --repo <target>` reports a loaded service and the project registry contains the target path.
 - no product code or real task was created.
 

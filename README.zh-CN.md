@@ -14,7 +14,9 @@
 
 Agent 不需要共享 Conversation Context（对话上下文），只需要 Relay（接力）项目状态。
 
-自动模式下，Planner 始终留在前台负责用户决策与最终交付，Runner 只在后台启动 Implementer 和 Reviewer：Planner 前台 → Implementer → Reviewer → Planner 前台总结 → `DONE`。最小化 Planner 窗口不会停止后台工作；到达 `PLANNING`、`REPORTING`、`WAITING_USER` 或 `BLOCKED` 时才等待前台处理。
+自动模式下，Planner 始终是用户交互入口。Runner 在后台启动 Implementer 和 Reviewer，随后自动恢复原 Planner 对话完成最终汇报：Planner 前台 → Implementer → Reviewer → 原 Planner 对话 → `DONE`。`REPORTING` 不再要求用户输入“继续”；Runner 默认每 45 秒按项目检查一次。`WAITING_USER` 和 `BLOCKED` 仍需要用户处理。
+
+原对话唤醒支持 `codex`、`opencode`、`claude-code` 和 `deepseek-harness`，能力状态如实标记为 `verified`、`experimental`、`static_only` 或 `unavailable`。本地绑定保存在已忽略的 `.agent-relay-auto/planner-channel.json`，状态输出只显示遮罩后的对话 ID。`DONE` 不代表 merge、push、release 或 deploy 授权。
 
 ## 它解决的不是“聊天”，而是项目认知会丢失
 

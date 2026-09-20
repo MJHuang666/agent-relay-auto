@@ -82,6 +82,61 @@ class AgentRelayContractTests(unittest.TestCase):
         for command in ("Runner 状态", "启动 Runner", "暂停当前任务", "立即中断当前角色", "恢复当前任务"):
             self.assertIn(command, text)
 
+    def test_original_planner_reporting_contract_is_bilingual_and_complete(self):
+        documents = (
+            ROOT / "README.md",
+            ROOT / "README.zh-CN.md",
+            ROOT / "docs/AGENT_RELAY_AUTO_USAGE.md",
+            ROOT / "docs/AGENT_RELAY_AUTO_USAGE.en-US.md",
+            ROOT / "shared/docs/agent/workflow.md",
+            CANONICAL / "assets/project-template/locales/zh-CN/docs/agent/workflow.md",
+            CANONICAL / "assets/project-template/locales/en-US/docs/agent/workflow.md",
+            CANONICAL / "assets/project-template/locales/zh-CN/docs/agent/integrations.md",
+            CANONICAL / "assets/project-template/locales/en-US/docs/agent/integrations.md",
+        )
+        for document in documents:
+            text = document.read_text(encoding="utf-8")
+            self.assertIn("45", text, document)
+            self.assertIn("REPORTING", text, document)
+            for tool in ("codex", "opencode", "claude-code", "deepseek-harness"):
+                self.assertIn(tool, text, document)
+
+        skill = (CANONICAL / "SKILL.md").read_text(encoding="utf-8")
+        for token in (
+            ".agent-relay-auto/planner-channel.json",
+            "same Planner conversation",
+            "does not type `continue`",
+            "verified",
+            "experimental",
+            "static_only",
+            "unavailable",
+            "Runner never writes `DONE` directly",
+        ):
+            self.assertIn(token, skill)
+
+    def test_canonical_skill_runtime_mirror_has_no_drift(self):
+        mirror = CANONICAL / "assets/project-template/shared/.agents/skills/agent-relay-auto"
+        canonical_files = {
+            path.relative_to(CANONICAL)
+            for path in CANONICAL.rglob("*")
+            if path.is_file()
+            and "assets" not in path.relative_to(CANONICAL).parts
+            and "__pycache__" not in path.parts
+            and path.suffix != ".pyc"
+            and not path.name.startswith("._")
+        }
+        mirror_files = {
+            path.relative_to(mirror)
+            for path in mirror.rglob("*")
+            if path.is_file()
+            and "__pycache__" not in path.parts
+            and path.suffix != ".pyc"
+            and not path.name.startswith("._")
+        }
+        self.assertEqual(canonical_files, mirror_files)
+        for relative in canonical_files:
+            self.assertEqual((CANONICAL / relative).read_bytes(), (mirror / relative).read_bytes(), relative)
+
 
 if __name__ == "__main__":
     unittest.main()

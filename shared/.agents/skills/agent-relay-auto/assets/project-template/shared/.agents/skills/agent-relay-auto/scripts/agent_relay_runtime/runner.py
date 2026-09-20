@@ -35,21 +35,36 @@ except ImportError:
     load_runtime_config = _sibling("config").load_runtime_config
 
 
+_reporting_module = _sibling("reporting")
+
+
 class RelayRunner:
-    def __init__(self, registry: ProjectRegistry, adapter_factory, notifier=None):
+    def __init__(self, registry: ProjectRegistry, adapter_factory, notifier=None, planner_wake_factory=None):
         self.registry = registry
         self.adapter_factory = adapter_factory
         self.notifier = notifier or MacOSNotifier()
+        if planner_wake_factory is None:
+            factory_path = Path(__file__).with_name("planner_wake") / "factory.py"
+            spec = importlib.util.spec_from_file_location("agent_relay_planner_wake_factory_runner", factory_path)
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = module
+            spec.loader.exec_module(module)
+            planner_wake_factory = module.create_planner_wake_factory()
+        self.planner_wake_factory = planner_wake_factory
         self.supervisors: dict[Path, ProjectSupervisor] = {}
         self._project_errors: dict[Path, str] = {}
         self._stopping = False
 
     def _supervisor(self, repo: Path) -> ProjectSupervisor:
         if repo not in self.supervisors:
+            runtime = load_runtime_config(repo)
             self.supervisors[repo] = ProjectSupervisor(
                 repo,
                 self.adapter_factory(repo),
-                runtime=load_runtime_config(repo),
+                runtime=runtime,
+                reporting=_reporting_module.ReportingCoordinator(
+                    repo, self.planner_wake_factory, runtime.reporting
+                ),
             )
         return self.supervisors[repo]
 
@@ -87,7 +102,7 @@ class RelayRunner:
                     )
         return tuple(decisions)
 
-    def serve(self, poll_interval_seconds: float = 2.0) -> None:
+    def serve(self, poll_interval_seconds: float = 45.0) -> None:
         while not self._stopping:
             for decision in self.run_once():
                 if decision.action == "project_error" and decision.report:

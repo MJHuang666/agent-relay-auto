@@ -8,6 +8,7 @@ import json
 import shutil
 import sys
 import uuid
+import re
 from pathlib import Path
 
 RUNTIME_DIR = Path(__file__).resolve().parent / "agent_relay_runtime"
@@ -155,15 +156,16 @@ def _report_done(args: argparse.Namespace) -> dict:
     missing = [term for term in required if term not in content]
     if missing:
         raise ValueError("final report is missing sections: " + ", ".join(missing))
-    _require_task_reference(Path(args.repo).resolve(), args.task, args.review_ref, "review")
-    result = StateStore(Path(args.repo).resolve()).complete_stage(
+    repo = Path(args.repo).resolve()
+    _require_task_reference(repo, args.task, args.review_ref, "review")
+    result = StateStore(repo).complete_report(
         args.task,
         args.expected_revision,
-        "planner",
         args.participant_id,
-        None,
-        "report_completed",
-        StageEvidence(progress_ref=str(report), review_ref=args.review_ref, report_ref=str(report)),
+        args.wake_key,
+        args.review_delivery_id,
+        args.review_ref,
+        str(report),
     )
     return result.__dict__
 
@@ -204,6 +206,14 @@ def _implementation_done(args: argparse.Namespace) -> dict:
     execution = _require_file(Path(args.execution), "execution")
     progress = _require_file(Path(args.progress), "progress")
     _require_task_reference(repo, args.task, args.delivery_ref, "delivery")
+    delivery_match = re.search(
+        r"^\s*delivery_id:\s*[\"']?([^\s\"']+)",
+        execution.read_text(encoding="utf-8"),
+        re.MULTILINE,
+    )
+    if delivery_match is None:
+        raise ValueError("execution evidence must contain a non-empty delivery_id")
+    delivery_id = delivery_match.group(1)
     result = StateStore(repo).complete_stage(
         args.task,
         args.expected_revision,
@@ -211,7 +221,9 @@ def _implementation_done(args: argparse.Namespace) -> dict:
         args.participant_id,
         args.run_id,
         "implementation_completed",
-        StageEvidence(progress_ref=str(progress), delivery_ref=args.delivery_ref),
+        StageEvidence(
+            progress_ref=str(progress), delivery_ref=args.delivery_ref, delivery_id=delivery_id
+        ),
     )
     return {**result.__dict__, "execution": str(execution), "delivery_ref": args.delivery_ref}
 
@@ -287,6 +299,8 @@ def parser() -> argparse.ArgumentParser:
     report.add_argument("--expected-revision", type=int, required=True)
     report.add_argument("--report", required=True)
     report.add_argument("--participant-id", required=True)
+    report.add_argument("--wake-key", required=True)
+    report.add_argument("--review-delivery-id", required=True)
     report.add_argument("--review-ref", required=True)
     cancel = commands.add_parser("cancel")
     cancel.add_argument("--task", required=True)

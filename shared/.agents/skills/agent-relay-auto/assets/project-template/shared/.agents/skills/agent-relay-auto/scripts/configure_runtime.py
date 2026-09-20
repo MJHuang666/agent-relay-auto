@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping
 
@@ -19,6 +20,11 @@ from agent_relay_runtime.adapters.factory import (  # noqa: E402
 from agent_relay_runtime.adapters.claude_code import ClaudeCodeAdapter  # noqa: E402
 from agent_relay_runtime.adapters.codex import CodexAdapter  # noqa: E402
 from agent_relay_runtime.adapters.opencode import OpenCodeAdapter  # noqa: E402
+from agent_relay_runtime.planner_channel import (  # noqa: E402
+    PlannerChannel,
+    PlannerChannelError,
+    PlannerChannelStore,
+)
 
 
 class ConfigurationError(ValueError):
@@ -79,16 +85,51 @@ class RuntimeConfigurator:
                 }
             except AdapterConfigurationError as error:
                 problems.append(str(error))
+        channel = None
+        try:
+            channel = PlannerChannelStore(self.repo).load()
+        except PlannerChannelError as error:
+            problems.append(str(error))
+        reporting: dict[str, object]
+        if channel is None:
+            reporting = {
+                "registered": False,
+                "action": "register_planner_channel",
+                "instruction": "Run $agent-relay-auto continue in the intended Planner conversation.",
+                "poll_interval_seconds": 45,
+            }
+        else:
+            suffix = channel.conversation_id[-6:]
+            capabilities = {
+                "codex": ("verified", "verified", "experimental"),
+                "opencode": ("verified", "verified", "verified"),
+                "claude-code": ("verified", "verified", "verified"),
+                "deepseek-harness": ("static_only", "static_only", "experimental"),
+            }[channel.tool]
+            reporting = {
+                "registered": True,
+                "tool": channel.tool,
+                "participant_id": channel.participant_id,
+                "conversation_id_masked": f"***{suffix}",
+                "project_path": channel.project_path,
+                "resume_original_conversation": capabilities[0],
+                "submit_turn": capabilities[1],
+                "reopen_original_ui": capabilities[2],
+                "poll_interval_seconds": 45,
+                "model_retry_limit": 1,
+                "presentation_retry_limit": 3,
+            }
         complete = policy.is_file() and not problems
         return {
             "exists": policy.is_file() or local.is_file(),
             "complete": complete,
             "mode": mode,
-            "ready_to_start": complete and mode == "automatic",
+            "ready_to_start": complete and mode == "automatic" and channel is not None,
             "roles": roles,
             "problems": problems,
             "policy": str(policy),
             "local": str(local),
+            "reporting": reporting,
         }
 
     def discover_options(self, tool_id: str) -> dict[str, object]:
@@ -170,6 +211,24 @@ class RuntimeConfigurator:
                 "validation_status": str(role_config.get("validation_status", "pending")),
                 "execution_mode": execution_mode,
             }
+        channel_answers = answers.get("planner_channel")
+        prepared_channel = None
+        if channel_answers is not None:
+            if not isinstance(channel_answers, Mapping):
+                raise ConfigurationError("planner_channel must be an object")
+            planner = normalized_roles["planner"]
+            try:
+                prepared_channel = PlannerChannel(
+                    participant_id=str(planner["participant_id"]),
+                    tool=str(channel_answers.get("tool", planner["agent"])),
+                    conversation_id=str(channel_answers.get("conversation_id", "")).strip(),
+                    project_path=str(self.repo),
+                    registered_at=datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+                )
+            except PlannerChannelError as error:
+                raise ConfigurationError(str(error)) from error
+            if prepared_channel.tool != planner["agent"]:
+                raise ConfigurationError("planner_channel.tool must match planner.agent")
         policy_path = self.repo / "docs/agent/automation-policy.yaml"
         policy_path.parent.mkdir(parents=True, exist_ok=True)
         lines = [
@@ -191,6 +250,15 @@ class RuntimeConfigurator:
             "  heartbeat_interval_seconds: 10",
             "  heartbeat_stale_seconds: 45",
             "  interrupt_grace_seconds: 30",
+            "reporting:",
+            "  enabled: true",
+            "  poll_interval_seconds: 45",
+            "  reopen_original_conversation: true",
+            "  launch_application_if_closed: true",
+            "  require_same_conversation: true",
+            "  model_retry_limit: 1",
+            "  presentation_retry_limit: 3",
+            "  presentation_retry_interval_seconds: 10",
             "roles:",
         ]
         for role in ("planner", "implementer", "reviewer"):
@@ -215,7 +283,18 @@ class RuntimeConfigurator:
         local_path = self.repo / ".agent-relay-auto/local.yaml"
         local_path.parent.mkdir(parents=True, exist_ok=True)
         local_path.write_text(f"mode: {automation_mode}\nlanguage: {language}\n", encoding="utf-8")
-        return {"mode": automation_mode, "language": language, "policy": str(policy_path), "local": str(local_path)}
+        channel_registered = False
+        if prepared_channel is not None:
+            PlannerChannelStore(self.repo).save(prepared_channel)
+            channel_registered = True
+        return {
+            "mode": automation_mode,
+            "language": language,
+            "policy": str(policy_path),
+            "local": str(local_path),
+            "planner_channel_registered": channel_registered,
+            "next_action": None if channel_registered or automation_mode != "automatic" else "register_planner_channel",
+        }
 
 
 def main(argv=None) -> int:

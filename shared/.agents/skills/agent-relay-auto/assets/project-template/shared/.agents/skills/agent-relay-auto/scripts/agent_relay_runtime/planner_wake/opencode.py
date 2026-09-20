@@ -1,0 +1,56 @@
+"""Wake an exact OpenCode Planner session."""
+
+from __future__ import annotations
+
+import importlib.util
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+
+def _base():
+    path = Path(__file__).with_name("base.py")
+    spec = importlib.util.spec_from_file_location("planner_wake_opencode_base", path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+_types = _base()
+
+
+def _run(command, cwd):
+    result = subprocess.run(command, cwd=cwd, text=True, capture_output=True, check=True)
+    return json.loads(result.stdout)
+
+
+class OpenCodePlannerWakeAdapter:
+    def __init__(self, executable="opencode", command_runner=None):
+        self.executable = executable
+        self.command_runner = command_runner or _run
+
+    def probe(self, channel):
+        return _types.WakeCapabilities("verified", "verified", "verified", "experimental")
+
+    def resume(self, channel):
+        return None
+
+    def submit_report(self, channel, request):
+        prompt = _types.build_reporting_prompt(request)
+        command = (self.executable, "run", "--session", channel.conversation_id, "--format", "json", prompt)
+        payload = self.command_runner(command, request.repo)
+        session_id = payload.get("session_id") or payload.get("sessionID")
+        if session_id != channel.conversation_id:
+            raise RuntimeError(f"OpenCode returned mismatched session {session_id!r}")
+        remote_id = str(payload.get("message_id") or payload.get("messageID") or session_id)
+        return _types.SubmissionReceipt(request.wake_key, "opencode", session_id, remote_id, "submitted", command)
+
+    def observe(self, receipt):
+        return _types.ObservationResult("completed")
+
+    def present(self, channel):
+        command = (self.executable, channel.project_path, "--session", channel.conversation_id)
+        subprocess.Popen(command, cwd=channel.project_path)
+        return _types.PresentationResult("presented")

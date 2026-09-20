@@ -14,7 +14,9 @@
 
 Agents do not need to share a Conversation Context. They only need to relay the project state stored in the repository.
 
-In automatic mode, Planner stays in the foreground for user decisions and final delivery. Runner launches only background Implementer and Reviewer processes: Planner foreground → Implementer → Reviewer → Planner foreground → `DONE`. Minimizing the Planner window does not stop background work; `PLANNING`, `REPORTING`, `WAITING_USER`, and `BLOCKED` wait for foreground attention.
+In automatic mode, Planner stays in the foreground for user decisions. Runner launches background Implementer and Reviewer processes, then resumes the exact original Planner conversation for final reporting: Planner foreground → Implementer → Reviewer → same Planner conversation → `DONE`. `REPORTING` no longer asks the user to type `continue`; the project-local Runner polls every 45 seconds by default. `WAITING_USER` and `BLOCKED` still require foreground attention.
+
+Original-conversation wake supports `codex`, `opencode`, `claude-code`, and `deepseek-harness`. Capability labels are explicit: `verified`, `experimental`, `static_only`, or `unavailable`. The local binding `.agent-relay-auto/planner-channel.json` is ignored and its conversation ID is masked in status output. `DONE` never means merge, push, release, or deploy.
 
 ## The problem it solves
 

@@ -2,6 +2,14 @@
 
 Read this reference before any task or project-state write. The installed repository's `docs/agent/workflow.md`, roles, conventions, and task files contain the project-specific facts; this reference defines how to use them.
 
+## Automatic Original-Planner Reporting
+
+`PLANNING` remains in the user-facing Planner conversation. After Reviewer `PASS`, Runner changes behavior at `REPORTING`: every 45 seconds by default it checks the project, resumes the exact conversation registered in the ignored `.agent-relay-auto/planner-channel.json`, and submits one idempotent reporting turn. Normal completion never asks the user to type `continue`.
+
+Planner wake tools are `codex`, `opencode`, `claude-code`, and `deepseek-harness`. Report capability labels exactly as `verified`, `experimental`, `static_only`, or `unavailable`; never promote a static probe to verified. The wake journal stores a hashed conversation component and masked ID, not prompts or transcripts.
+
+Only the registered Planner may call `report-done`, with matching task, revision, participant, persisted `wake_key`, Reviewer reference, and `review_delivery_id`. Runner does not write `DONE`. `DONE` remains acceptance only and does not authorize merge, push, release, or deploy.
+
 ## Identity
 
 The project language is read from `PROJECT_STATUS.md`. Use it for all user-facing communication and new task prose. Do not translate stable YAML keys, status enum values, file names, participant IDs, or delivery IDs.
@@ -74,7 +82,7 @@ DONE means task acceptance only. It does not authorize merge, release, deploymen
 
 In automatic mode, the Runner is an orchestrator, not a reviewer. It may start the next participant only after a valid CAS-protected state transition. It must not interpret chat text or stdout containing “pass” as a verdict. A process interruption is resumable only through a native session or a checkpoint restart after checking the actual diff and live processes; an uncertain remote run is `BLOCKED`.
 
-Planner remains foreground and Runner returns `waiting_foreground_planner` for `PLANNING` and `REPORTING`. Implementer completes with `implementation-done`; Reviewer completes with `verdict`. Both commands validate revision, participant, run ID, evidence, and writer lease atomically. A background process that exits without changing its starting business state is `protocol_failure: no_handoff`, even when its exit code is zero. Default `heartbeat_stale_seconds` is 45; stale or mismatched identities require audited recovery rather than guessed completion.
+Planner remains user-facing. Runner returns `waiting_foreground_planner` for `PLANNING`, but automatically resumes the registered exact Planner conversation at `REPORTING`. Implementer completes with `implementation-done`; Reviewer completes with `verdict`. Both commands validate revision, participant, run ID, evidence, and writer lease atomically. A background process that exits without changing its starting business state is `protocol_failure: no_handoff`, even when its exit code is zero. Default `heartbeat_stale_seconds` and project reporting poll interval are 45 seconds; stale or mismatched identities require audited recovery rather than guessed completion.
 
 ## Repair and Management
 

@@ -1,8 +1,10 @@
 # Agent Relay Auto 使用手册
 
-本文对应 `agent-relay-auto` Skill v1.7.0，说明初始化、任务接力、Agent 更换、暂停恢复、状态查询和最终验收。
+本文对应 `agent-relay-auto` Skill v1.8.0，说明初始化、任务接力、Agent 更换、原 Planner 对话自动汇报、暂停恢复、状态查询和最终验收。
 
-自动模式固定采用：Planner 前台沟通与交付 → Runner 后台 Implementer → Runner 后台 Reviewer → Planner 前台总结。Runner 对规划与汇报返回 `waiting_foreground_planner`，不会创建 Planner 后台进程。后台角色使用 `implementation-done` / `verdict` 交接；`protocol_failure: no_handoff` 会受限重试。默认 `heartbeat_stale_seconds: 45`。
+自动模式固定采用：Planner 前台沟通 → Runner 后台 Implementer → Runner 后台 Reviewer → Runner 恢复原 Planner 对话自动汇报。`PLANNING` 等待前台交互，`REPORTING` 则不需要用户再输入“继续”。默认项目轮询间隔是 45 秒。
+
+初始化会登记当前 Planner 对话到本地忽略文件 `.agent-relay-auto/planner-channel.json`，仅展示遮罩 ID。支持 `codex`、`opencode`、`claude-code`、`deepseek-harness`；能力标签为 `verified` / `experimental` / `static_only` / `unavailable`。Reviewer PASS 后，只有原 Planner 可以使用 `wake_key` 和 `review_delivery_id` 执行 `report-done`，Runner 不直接写 `DONE`。
 
 ## 1. 初始化仓库
 

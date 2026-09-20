@@ -1,8 +1,10 @@
 # Agent Relay Auto Usage Guide
 
-This guide covers `agent-relay-auto` Skill v1.7.0: initialization, role handoff, Agent replacement, pause and recovery, state inspection, and task acceptance.
+This guide covers `agent-relay-auto` Skill v1.8.0: initialization, role handoff, Agent replacement, automatic original-Planner reporting, pause and recovery, state inspection, and task acceptance.
 
-Automatic mode is fixed to: foreground Planner → background Implementer → background Reviewer → foreground Planner summary. Runner returns `waiting_foreground_planner` for planning and reporting and never creates a Planner background process. Background roles hand off through `implementation-done` / `verdict`; `protocol_failure: no_handoff` is retried only within policy. Default `heartbeat_stale_seconds` is 45.
+Automatic mode is fixed to: foreground Planner → background Implementer → background Reviewer → resume the exact original Planner conversation for reporting. `PLANNING` waits for foreground interaction; `REPORTING` does not require the user to type `continue`. The default project polling interval is 45 seconds.
+
+Initialization registers the current Planner conversation in the ignored local file `.agent-relay-auto/planner-channel.json` and displays only a masked ID. Wake tools are `codex`, `opencode`, `claude-code`, and `deepseek-harness`, with truthful `verified` / `experimental` / `static_only` / `unavailable` labels. After Reviewer PASS, only the original Planner may execute guarded `report-done` with the persisted `wake_key` and matching `review_delivery_id`; Runner never writes `DONE` directly.
 
 ## Initialize a repository
 

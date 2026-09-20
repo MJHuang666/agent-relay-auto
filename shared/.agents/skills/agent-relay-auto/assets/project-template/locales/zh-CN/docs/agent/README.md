@@ -2,6 +2,8 @@
 
 本目录是安装后所有 Agent 的项目上下文入口。开始工作先读 `PROJECT_STATUS.md`，再读活动任务的 `STATE.md` 和 `workflow.md`。
 
+> 自动模式 v1.8：Reviewer PASS 后，Runner 默认每 45 秒检查状态，并恢复 `.agent-relay-auto/planner-channel.json` 登记的原 Planner 对话自动汇报。支持 `codex`、`opencode`、`claude-code`、`deepseek-harness`，能力标签为 `verified` / `experimental` / `static_only` / `unavailable`。正常 `REPORTING` 无需用户输入 `continue`，Runner 不直接写 `DONE`。
+
 ## What Each File Owns
 
 | File or directory | Authority |

@@ -1,6 +1,6 @@
 # Multi-Agent Workflow
 
-In automatic mode Planner is `execution_mode: foreground`. Runner returns `waiting_foreground_planner` for planning/reporting and launches only background Implementer and Reviewer. They hand off through `implementation-done` and `verdict`; exit 0 without a transition is `protocol_failure: no_handoff`. Default `heartbeat_stale_seconds: 45`.
+In automatic mode Planner is `execution_mode: foreground`. `PLANNING` waits for the user-facing Planner, while `REPORTING` automatically resumes the exact conversation registered in `.agent-relay-auto/planner-channel.json`; normal completion does not ask the user to type `continue`. Runner polls each project every 45 seconds by default. Wake tools are `codex`, `opencode`, `claude-code`, and `deepseek-harness`, with `verified`, `experimental`, `static_only`, or `unavailable` capability labels. Runner never writes `DONE`; Planner must validate `wake_key` and `review_delivery_id` before guarded `report-done`.
 
 ## Daily Path
 

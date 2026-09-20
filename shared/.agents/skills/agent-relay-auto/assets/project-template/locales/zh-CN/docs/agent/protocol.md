@@ -1,6 +1,6 @@
 # Agent Relay Auto Protocol
 
-自动模式中 Planner 固定为 `execution_mode: foreground`；Runner 返回 `waiting_foreground_planner`，只在后台启动 Implementer 和 Reviewer。后台角色使用 `implementation-done` / `verdict` 交接；`protocol_failure: no_handoff` 受限重试。默认 `heartbeat_stale_seconds: 45`。
+自动模式中 Planner 固定为 `execution_mode: foreground`。`PLANNING` 等待用户对话；Reviewer PASS 进入 `REPORTING` 后，Runner 默认每 45 秒检查并恢复 `.agent-relay-auto/planner-channel.json` 登记的同一 Planner 对话，不需要用户输入 `continue`。唤醒支持 `codex`、`opencode`、`claude-code`、`deepseek-harness`，能力标签为 `verified`、`experimental`、`static_only`、`unavailable`。Runner 不直接写 `DONE`；Planner 必须用匹配的 `wake_key` 和 `review_delivery_id` 执行 `report-done`。
 
 This repository uses file-based collaboration between Planner, Implementer, and Reviewer.
 

@@ -14,6 +14,17 @@
 | OpenCode | 是 | 根目录 `AGENTS.md` + `.agents/skills/agent-relay-auto/` | 是 | 已验证 | 1.3.17 / 2026-09-17 |
 | 其他 | 是 | 记录该工具实际支持的入口 | 否 | 未配置 | - |
 
+## Original Planner Auto-reporting
+
+| Planner Tool ID | Exact-session Submit | Original UI Reopen | End-to-end Status |
+|---|---|---|---|
+| `codex` | `verified` | `experimental` | `experimental` |
+| `opencode` | `verified` | `verified` | `experimental` |
+| `claude-code` | `verified` | `verified` | `experimental` |
+| `deepseek-harness` | `static_only` | `experimental` | `static_only` |
+
+初始化将精确对话绑定写入本地忽略的 `.agent-relay-auto/planner-channel.json`，只显示遮罩 ID。`REPORTING` 由 45 秒默认轮询触发，正常闭环不要求用户输入 `continue`。`DONE` 仅代表验收，不授权 merge、push、release 或 deploy。
+
 ## Verification Procedure
 
 1. 从目标仓库启动一个全新会话。

@@ -43,6 +43,8 @@ Scopes:
 
 When the changed role is current, the helper increments `revision` and `stage_round`, clears writer/checkpoint ownership, creates a `MANAGEMENT` progress record, and leaves the new participant idle. A changed non-current assignment increments only `revision`. Changing Implementer resets the task's subagent decision.
 
+Planner replacement is rejected while `reporting.phase` is `submitted` or `active`. When reporting is idle, include `--planner-conversation-id <exact-id>`; the helper rebinds `.agent-relay-auto/planner-channel.json` under the same project lock. Old wake journal entries remain immutable, so repeated A → B → A switching does not reuse a stale wake.
+
 If the state still names a writer session, replacement fails. Only after read-only evidence confirms the writer stopped and the user explicitly authorizes takeover may the command include `--confirm-writer-stopped`.
 
 ## Repeated Switching and Identity Status
@@ -59,4 +61,4 @@ python3 .agents/skills/agent-relay-auto/scripts/workflow_state.py \
 
 Releasing a lock does not change task ownership. Re-read status and revision before attempting the intended operation again.
 
-The automatic commands use the same lock and revision rules. `relay_state.py wait-user`, `answer`, `verdict`, `report-done`, and `cancel` are coordination writes; they never modify product files. A stale `expected_revision` must be discarded and re-read rather than retried.
+The automatic commands use the same lock and revision rules. `relay_state.py wait-user`, `answer`, `verdict`, `report-done`, and `cancel` are coordination writes; they never modify product files. Automated `report-done` additionally requires `--wake-key` and `--review-delivery-id`. A stale `expected_revision` must be discarded and re-read rather than retried.

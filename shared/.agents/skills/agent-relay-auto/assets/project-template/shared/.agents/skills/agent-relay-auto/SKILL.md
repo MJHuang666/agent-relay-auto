@@ -7,15 +7,18 @@ description: Use when initializing a repository for file-based Planner, Implemen
 
 Keep project context in repository files so a new agent session can continue without replaying chat history.
 
-## Automatic v1.7 Role Boundary
+## Automatic v1.8 Role Boundary
 
 In automatic mode, Planner is always foreground. The user talks to Planner for planning, decisions, replanning, and final delivery; Runner never launches a Planner process. The automatic path is:
 
 ```text
-Planner foreground → Runner background Implementer → Runner background Reviewer → Planner foreground → DONE
+Planner foreground → Runner background Implementer → Runner background Reviewer
+                  → resume the same Planner conversation → DONE
 ```
 
-`PLANNING` and `REPORTING` return `waiting_foreground_planner`. `WAITING_USER` and `BLOCKED` also wait for foreground action. Minimizing the Planner window does not stop a running Implementer or Reviewer. Background roles must finish with `implementation-done` or `verdict`; process exit alone is not a handoff. An exit 0 without a legal transition is `protocol_failure: no_handoff`, consumes the bounded retry policy, and then blocks.
+`PLANNING` remains interactive in the original Planner conversation. `REPORTING` is different: Runner resumes that exact registered conversation automatically, so the user does not type `continue`. `WAITING_USER` and `BLOCKED` still wait for foreground action. Minimizing the Planner window does not stop the workflow. Background roles must finish with `implementation-done` or `verdict`; process exit alone is not a handoff. An exit 0 without a legal transition is `protocol_failure: no_handoff`, consumes the bounded retry policy, and then blocks.
+
+The local ignored binding `.agent-relay-auto/planner-channel.json` records the exact Planner participant, tool, conversation ID, project path, and registration time. Never commit it or print the full conversation ID. Supported Planner wake tools are `codex`, `opencode`, `claude-code`, and `deepseek-harness`; capability labels are `verified`, `experimental`, `static_only`, or `unavailable`. DeepSeek Harness remains `static_only` for end-to-end reporting until a real credentialed session passes.
 
 Run identity, launch context, heartbeats, stdout/stderr and exit records live under `.agent-relay-auto/runs/`. Default `heartbeat_stale_seconds` is 45. Codex `--ephemeral` controls session persistence only; it does not prove lifecycle completion or release a writer lease.
 
@@ -47,7 +50,7 @@ Old and new agents may both start a replacement, including repeated A → B → 
 2. Ask for scope: `current-task`, `project-default`, or `both`.
 3. Select an existing same-role `active`/`standby` participant or explicitly register a new immutable identity.
 4. Record the reason and authorization, show the exact proposed change, and obtain confirmation.
-5. Use `scripts/workflow_state.py replace-agent` with the freshly read revision. Do not edit coordination state around the helper.
+5. Use `scripts/workflow_state.py replace-agent` with the freshly read revision. Planner replacement also requires the new exact `--planner-conversation-id`; it is rejected while reporting is submitted or active. Do not edit coordination state around the helper.
 6. End the management operation. If the new participant is current, tell the user to invoke `继续` / `continue` separately.
 
 Changing chat windows while keeping the same participant is session recovery/takeover, not participant replacement. A running foreign writer must first be proven stopped; pass `--confirm-writer-stopped` only when that evidence and explicit authorization exist. Never auto-release a lock. If Python is unavailable, use the documented manual single-writer path and state that lock/CAS protection is degraded.
@@ -105,11 +108,13 @@ Each red flag means stop writing and follow the read-only or repair path in the 
 
 During initialization, after language and the three role bindings are selected, inspect runtime configuration with `scripts/configure_runtime.py inspect --repo <repo>`. Never install, register, or start the Runner while any role has a missing participant ID, unsupported automatic Agent, `default`/placeholder model, missing reasoning setting, or another reported configuration problem.
 
-When configuration is absent or incomplete, guide the user through Planner, Implementer, and Reviewer in the conversation. For each role, show the selected Agent, use `configure_runtime.py discover --tool <tool-id>` to show models when discovery is available, allow a stable model ID when discovery is unavailable, and ask for the tool-specific reasoning setting (`reasoning_effort` for Codex, `variant` for OpenCode, `effort` for Claude Code). Codex, OpenCode, and Claude Code are the automatic adapters; other registered tools remain manual-only until a verified non-interactive adapter exists.
+When configuration is absent or incomplete, guide the user through Planner, Implementer, and Reviewer in the conversation. For each role, show the selected Agent, use `configure_runtime.py discover --tool <tool-id>` to show models when discovery is available, allow a stable model ID when discovery is unavailable, and ask for the tool-specific reasoning setting (`reasoning_effort` for Codex, `variant` for OpenCode, `effort` for Claude Code). Background automatic execution supports Codex, OpenCode, and Claude Code. Exact Planner reporting wake supports Codex, OpenCode, Claude Code, and DeepSeek Harness with the truthful capability labels reported by `inspect`.
+
+Initialization must register the current Planner conversation after role/model configuration. Pass its tool and exact conversation ID as `planner_channel` to `configure_runtime.py apply`; then show only the masked ID and capability labels from `inspect`. If an older project has no channel, instruct the user to run `$agent-relay-auto continue` once in the intended Planner conversation so the Skill can register it. This is migration/configuration, not the normal reporting flow.
 
 Show one final three-role summary and obtain confirmation, then ask separately whether to install and start the Runner. Apply the confirmed non-secret JSON with that answer as `runner_confirmed`, then inspect again. When installation was accepted, require `ready_to_start: true` before installing the versioned runtime with `setup_runner.py` and starting/registering the project with `runnerctl.py start --repo <repo>`. A failure at any gate remains visible and stops startup; do not expose “Adapter factory” as a user configuration step. Declining installation writes or keeps `mode: manual` and continues the file-based workflow.
 
-In automatic mode, Planner remains the user-facing decision entry point. The Runner may start Planner, Implementer, Reviewer, and the final Planner reporting pass through their configured non-interactive adapters. A decision request enters `WAITING_USER` and sends a notification without stealing focus. Reviewer evidence is required before `PASS`; Planner's valid final report is required before `DONE`.
+In automatic mode, Planner remains the user-facing decision entry point. Runner starts Implementer and Reviewer in the background, then submits one idempotent reporting turn to the original registered Planner conversation. The default project polling interval is 45 seconds. A decision request enters `WAITING_USER` and sends a notification without stealing focus. Reviewer evidence is required before `PASS`; Planner validates the wake key and reviewed delivery, writes the final report, and alone may execute guarded `report-done`. Runner never writes `DONE` directly.
 
 After a valid automatic handoff, the current role ends its write session and reports which role Runner is starting. It must not ask the user to open the next role or type `继续` / `continue`. Manual continuation instructions are used only when `mode: manual`, Runner is explicitly stopped, or the project is visibly `BLOCKED` with a user action.
 

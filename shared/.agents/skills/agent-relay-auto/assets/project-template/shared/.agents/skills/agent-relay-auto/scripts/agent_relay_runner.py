@@ -23,7 +23,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--registry", default="~/.config/agent-relay-auto/projects.json")
     parser.add_argument("--once", action="store_true")
-    parser.add_argument("--poll-interval", type=float, default=2.0)
+    parser.add_argument("--poll-interval", type=float, default=45.0)
     args = parser.parse_args(argv)
     registry = ProjectRegistry(Path(args.registry).expanduser())
     runner = RelayRunner(registry, create_adapter_factory())

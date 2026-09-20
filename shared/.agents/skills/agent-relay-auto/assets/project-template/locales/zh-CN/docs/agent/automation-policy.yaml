@@ -16,6 +16,15 @@ runtime:
   heartbeat_interval_seconds: 10
   heartbeat_stale_seconds: 45
   interrupt_grace_seconds: 30
+reporting:
+  enabled: true
+  poll_interval_seconds: 45
+  reopen_original_conversation: true
+  launch_application_if_closed: true
+  require_same_conversation: true
+  model_retry_limit: 1
+  presentation_retry_limit: 3
+  presentation_retry_interval_seconds: 10
 roles:
   planner:
     execution_mode: foreground
