@@ -25,12 +25,14 @@ try:
         atomic_write_text as _runtime_atomic_write,
         parse_fenced_yaml as _runtime_parse_fenced_yaml,
     )
+    from agent_relay_runtime.planner_channel import PlannerChannel, PlannerChannelStore
 except ImportError:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     from agent_relay_runtime.markdown_state import (
         atomic_write_text as _runtime_atomic_write,
         parse_fenced_yaml as _runtime_parse_fenced_yaml,
     )
+    from agent_relay_runtime.planner_channel import PlannerChannel, PlannerChannelStore
 
 
 ROLE_KEYS = {"planner", "implementer", "reviewer"}
@@ -508,6 +510,17 @@ def replace_agent(repo: Path, args: argparse.Namespace) -> dict:
             raise WorkflowError(f"target participant is not reusable: status={target['status']}")
         if args.from_participant == args.to_participant:
             raise WorkflowError("replacement source and target are identical")
+        planner_channel = None
+        if args.role == "planner":
+            if not args.planner_conversation_id:
+                raise WorkflowError("Planner replacement requires --planner-conversation-id")
+            planner_channel = PlannerChannel(
+                participant_id=args.to_participant,
+                tool=target["tool"],
+                conversation_id=args.planner_conversation_id,
+                project_path=str(repo),
+                registered_at=now_iso(),
+            )
 
         affects_task = args.scope in {"current-task", "both"}
         affects_default = args.scope in {"project-default", "both"}
@@ -528,6 +541,11 @@ def replace_agent(repo: Path, args: argparse.Namespace) -> dict:
                 )
             if state.get("status") in {"DONE", "CANCELLED"}:
                 raise WorkflowError("cannot replace an assignment in a terminal task")
+            reporting = state.get("reporting") or {}
+            if args.role == "planner" and isinstance(reporting, dict) and reporting.get("phase") in {
+                "submitted", "active"
+            }:
+                raise WorkflowError("cannot replace Planner while reporting wake is active")
             assignments = state.get("assignments") or {}
             if assignments.get(args.role) != args.from_participant:
                 raise WorkflowError(
@@ -638,6 +656,8 @@ def replace_agent(repo: Path, args: argparse.Namespace) -> dict:
             atomic_write(path, content)
         if project_update:
             atomic_write(project_update[0], project_update[1])
+        if planner_channel is not None:
+            PlannerChannelStore(repo).save(planner_channel)
 
         return {
             "transaction_id": transaction["transaction_id"],
@@ -667,6 +687,7 @@ def build_parser() -> argparse.ArgumentParser:
     replace.add_argument("--reason", required=True)
     replace.add_argument("--authorization", required=True)
     replace.add_argument("--confirm-writer-stopped", action="store_true")
+    replace.add_argument("--planner-conversation-id")
 
     release = subparsers.add_parser(
         "release-stale-lock", help="remove a lock only after authorized stop confirmation"

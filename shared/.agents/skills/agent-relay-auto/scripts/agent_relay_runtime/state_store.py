@@ -79,6 +79,7 @@ class StageEvidence:
     delivery_ref: str | None = None
     review_ref: str | None = None
     report_ref: str | None = None
+    delivery_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -269,6 +270,8 @@ class StateStore:
             }
             if evidence.delivery_ref is not None:
                 values[("code_delivery_ref",)] = evidence.delivery_ref
+            if evidence.delivery_id is not None:
+                values[("delivery_id",)] = evidence.delivery_id
             if evidence.review_ref is not None:
                 values[("review_ref",)] = evidence.review_ref
             if evidence.report_ref is not None:
@@ -282,6 +285,55 @@ class StateStore:
                 values[("execution",)] = "idle"
             self._write_state(path, text, values)
             return TransitionResult(task_id, expected_status, new_status, expected_revision, expected_revision + 1)
+
+    def prepare_reporting_wake(
+        self,
+        task_id: str,
+        expected_revision: int,
+        participant_id: str,
+        conversation_id: str,
+    ) -> tuple[int, str]:
+        with _state_lock(self.repo, "prepare-reporting-wake"):
+            path, text, state = self._read_task(task_id)
+            if state.get("revision") != expected_revision:
+                raise RevisionConflict(
+                    f"revision mismatch: expected {expected_revision}, actual {state.get('revision')}"
+                )
+            if state.get("status") != "REPORTING":
+                raise TransitionError("reporting wake requires REPORTING state")
+            if state.get("current_role") != "planner" or state.get("current_participant") != participant_id:
+                raise TransitionError("reporting wake Planner identity mismatch")
+            existing = state.get("reporting") if isinstance(state.get("reporting"), Mapping) else {}
+            if existing.get("wake_key"):
+                return expected_revision, str(existing["wake_key"])
+            output_revision = expected_revision + 1
+            wake_key = f"{task_id}:{output_revision}:{participant_id}:{conversation_id}"
+            self._write_state(
+                path,
+                text,
+                {
+                    ("reporting",): {"phase": "pending", "wake_key": wake_key},
+                    ("revision",): output_revision,
+                    ("updated_at",): now_iso(),
+                },
+            )
+            return output_revision, wake_key
+
+    def set_reporting_phase(
+        self, task_id: str, expected_revision: int, wake_key: str, phase: str
+    ) -> None:
+        with _state_lock(self.repo, f"reporting-phase:{phase}"):
+            path, text, state = self._read_task(task_id)
+            if state.get("revision") != expected_revision:
+                raise RevisionConflict(
+                    f"revision mismatch: expected {expected_revision}, actual {state.get('revision')}"
+                )
+            reporting = state.get("reporting") if isinstance(state.get("reporting"), Mapping) else {}
+            if reporting.get("wake_key") != wake_key:
+                raise TransitionError("reporting wake_key mismatch")
+            updated = dict(reporting)
+            updated["phase"] = phase
+            self._write_state(path, text, {("reporting",): updated, ("updated_at",): now_iso()})
 
     def complete_report(
         self,

@@ -23,6 +23,7 @@ class RunnerInstallerTests(unittest.TestCase):
             self.assertTrue((root / "launch-agents/com.agent-relay-auto.runner.plist").is_file())
             self.assertTrue((root / "data/current").is_symlink())
             plist = (root / "launch-agents/com.agent-relay-auto.runner.plist").read_text(encoding="utf-8")
+            self.assertIn("<string>45</string>", plist)
             self.assertNotIn("~/", plist)
             self.assertIn("<key>HOME</key>", plist)
             self.assertIn("<key>CODEX_HOME</key>", plist)

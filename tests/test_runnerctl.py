@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -7,6 +8,18 @@ from tests.shared.agent_relay_runtime_loader import load_runtime_module
 
 
 runnerctl = load_runtime_module("runnerctl", "../runnerctl.py")
+
+
+def write_planner_channel(repo, participant_id="planner-codex", tool="codex"):
+    target = repo / ".agent-relay-auto/planner-channel.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps({
+        "participant_id": participant_id,
+        "tool": tool,
+        "conversation_id": "thread-test-1",
+        "project_path": str(repo.resolve()),
+        "registered_at": "2026-09-20T00:00:00Z",
+    }), encoding="utf-8")
 
 
 class RunnerCtlTests(unittest.TestCase):
@@ -34,6 +47,7 @@ roles:
             repo = root / "repo"
             (repo / "docs/agent").mkdir(parents=True)
             (repo / "docs/agent/automation-policy.yaml").write_text(policy)
+            write_planner_channel(repo)
             plist = root / "runner.plist"
             plist.write_text("plist")
             print_count = 0
@@ -87,8 +101,8 @@ roles:
             def run(command, **kwargs):
                 return SimpleNamespace(returncode=0, stdout="state = running\nactive count = 1\n", stderr="")
             result = runnerctl.RunnerController(root / "projects.json", root / "runner.plist", 501, run).status(repo)
-            self.assertEqual(result["runner_action"], "waiting_foreground_planner")
-            self.assertTrue(result["attention_required"])
+            self.assertEqual(result["runner_action"], "reporting_active")
+            self.assertFalse(result["attention_required"])
             self.assertEqual(result["last_run_result"], "protocol_failure")
             self.assertTrue(Path(result["run_log"]).is_absolute())
     def test_dry_run_actions_are_json_safe(self):
@@ -121,6 +135,7 @@ roles:
             repo = root / "repo"
             (repo / "docs/agent").mkdir(parents=True)
             (repo / "docs/agent/automation-policy.yaml").write_text(policy, encoding="utf-8")
+            write_planner_channel(repo)
             plist = root / "LaunchAgents/com.agent-relay-auto.runner.plist"
             plist.parent.mkdir(parents=True)
             plist.write_text("plist", encoding="utf-8")
@@ -173,6 +188,27 @@ roles:
                 controller.start(repo)
             self.assertEqual(calls, [])
 
+    def test_start_rejects_missing_planner_channel_before_launchctl(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = root / "repo"
+            (repo / "docs/agent").mkdir(parents=True)
+            (repo / "docs/agent/automation-policy.yaml").write_text(
+                "mode: automatic\nroles:\n"
+                "  planner:\n    participant_id: planner-codex\n    agent: codex\n    model: gpt-test\n    reasoning_effort: high\n"
+                "  implementer:\n    participant_id: impl-a\n    agent: codex\n    model: gpt-test\n    reasoning_effort: high\n"
+                "  reviewer:\n    participant_id: reviewer-a\n    agent: codex\n    model: gpt-test\n    reasoning_effort: high\n",
+                encoding="utf-8",
+            )
+            calls = []
+            controller = runnerctl.RunnerController(
+                root / "projects.json", root / "runner.plist", 501,
+                lambda command, **kwargs: calls.append(command),
+            )
+            with self.assertRaisesRegex(runnerctl.RunnerControlError, "Planner channel"):
+                controller.start(repo)
+            self.assertEqual(calls, [])
+
     def test_status_marks_incomplete_project_blocked_even_when_service_runs(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -215,6 +251,7 @@ roles:
             repo = root / "repo"
             (repo / "docs/agent").mkdir(parents=True)
             (repo / "docs/agent/automation-policy.yaml").write_text(policy, encoding="utf-8")
+            write_planner_channel(repo)
 
             def run(command, **kwargs):
                 return SimpleNamespace(
@@ -258,6 +295,7 @@ roles:
             repo = root / "repo"
             (repo / "docs/agent").mkdir(parents=True)
             (repo / "docs/agent/automation-policy.yaml").write_text(policy, encoding="utf-8")
+            write_planner_channel(repo)
             plist = root / "LaunchAgents/com.agent-relay-auto.runner.plist"
             plist.parent.mkdir(parents=True)
             plist.write_text("plist", encoding="utf-8")

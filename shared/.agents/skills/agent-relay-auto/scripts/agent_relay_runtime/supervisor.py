@@ -67,6 +67,7 @@ class ProjectSupervisor:
         process_manager: ProcessManager | None = None,
         run_store: RunStore | None = None,
         runtime: RuntimeConfig | None = None,
+        reporting=None,
     ):
         self.repo = Path(repo).resolve()
         self.adapter = adapter
@@ -74,6 +75,7 @@ class ProjectSupervisor:
         self.runtime = runtime or RuntimeConfig.defaults()
         self.store = StateStore(self.repo, self.runtime.policy.max_agent_retries)
         self.run_store = run_store or RunStore(self.repo)
+        self.reporting = reporting
         self._active: dict[str, ManagedProcess] = {}
         self._start_status: dict[str, str] = {}
 
@@ -183,8 +185,18 @@ class ProjectSupervisor:
         if state.get("run_status") in {"starting", "running"}:
             return self._reconcile_durable(str(task_id), str(state.get("run_id")))
         status = state.get("status")
-        if status in {"PLANNING", "REPORTING"}:
+        if status == "PLANNING":
             return SupervisorDecision("waiting_foreground_planner", str(task_id), detail=str(status), report=True)
+        if status == "REPORTING":
+            if self.reporting is None:
+                return SupervisorDecision("blocked", str(task_id), detail="Planner reporting coordinator is unavailable", report=True)
+            reporting = self.reporting.tick(str(task_id))
+            return SupervisorDecision(
+                reporting.action,
+                str(task_id),
+                detail=reporting.detail or (reporting.wake_key or ""),
+                report=reporting.action in {"blocked", "report_completed"},
+            )
         role = {
             "IMPLEMENTING": "implementer",
             "CHANGES_REQUESTED": "implementer",

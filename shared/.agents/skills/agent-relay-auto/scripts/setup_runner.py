@@ -83,7 +83,7 @@ class RunnerInstaller:
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>Label</key><string>com.agent-relay-auto.runner</string>
-<key>ProgramArguments</key><array><string>/usr/bin/python3</string><string>{runner}</string><string>--registry</string><string>{registry}</string></array>
+<key>ProgramArguments</key><array><string>/usr/bin/python3</string><string>{runner}</string><string>--registry</string><string>{registry}</string><string>--poll-interval</string><string>45</string></array>
 <key>EnvironmentVariables</key><dict>
 <key>HOME</key><string>{escape(str(home))}</string>
 <key>CODEX_HOME</key><string>{escape(str(codex_home))}</string>

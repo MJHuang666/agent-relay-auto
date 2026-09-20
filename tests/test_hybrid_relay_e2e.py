@@ -74,7 +74,7 @@ class HybridRelayE2ETests(unittest.TestCase):
             )
             self.drain_until(runner, task, "REVIEWING")
             self.drain_until(runner, task, "REPORTING", settled=True)
-            self.assertEqual(runner.run_once()[0].action, "waiting_foreground_planner")
+            self.assertEqual(runner.run_once()[0].action, "blocked")
 
             roles = []
             for metadata in (repo / ".agent-relay-auto/runs/TASK-001").glob("*/metadata.json"):

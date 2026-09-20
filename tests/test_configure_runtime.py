@@ -100,6 +100,10 @@ class ConfigureRuntimeTests(unittest.TestCase):
                         },
                     },
                     "runner_confirmed": True,
+                    "planner_channel": {
+                        "tool": "codex",
+                        "conversation_id": "thread-secret-123456",
+                    },
                 }
             )
             self.assertEqual(result["mode"], "automatic")
@@ -116,6 +120,30 @@ class ConfigureRuntimeTests(unittest.TestCase):
             self.assertEqual(summary["roles"]["implementer"]["participant_id"], "implementer-opencode")
             self.assertEqual(summary["mode"], "automatic")
             self.assertTrue(summary["ready_to_start"])
+            self.assertEqual(summary["reporting"]["tool"], "codex")
+            self.assertNotIn("thread-secret-123456", json.dumps(summary))
+            self.assertIn("123456", summary["reporting"]["conversation_id_masked"])
+            self.assertEqual(summary["reporting"]["poll_interval_seconds"], 45)
+
+    def test_missing_planner_channel_returns_conversational_migration_action(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            (repo / "docs/agent").mkdir(parents=True)
+            (repo / "docs/agent/automation-policy.yaml").write_text(
+                "mode: automatic\nroles:\n  planner:\n    execution_mode: foreground\n"
+                "    participant_id: planner-codex\n    agent: codex\n    model: gpt-test\n"
+                "    reasoning_effort: high\n    validation_status: verified\n"
+                "  implementer:\n    execution_mode: background\n    participant_id: impl-a\n"
+                "    agent: codex\n    model: gpt-test\n    reasoning_effort: high\n"
+                "    validation_status: verified\n  reviewer:\n    execution_mode: background\n"
+                "    participant_id: review-a\n    agent: codex\n    model: gpt-test\n"
+                "    reasoning_effort: high\n    validation_status: verified\n",
+                encoding="utf-8",
+            )
+            summary = configurator.RuntimeConfigurator(repo).inspect_existing()
+            self.assertFalse(summary["ready_to_start"])
+            self.assertEqual(summary["reporting"]["action"], "register_planner_channel")
+            self.assertIn("$agent-relay-auto continue", summary["reporting"]["instruction"])
 
     def test_discover_options_returns_selectable_models_and_reasoning_key(self):
         with tempfile.TemporaryDirectory() as directory:

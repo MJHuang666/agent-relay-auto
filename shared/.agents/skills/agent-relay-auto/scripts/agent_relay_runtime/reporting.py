@@ -21,6 +21,7 @@ _markdown = _load("markdown_state")
 _channel = _load("planner_channel")
 _wake = _load("wake_store")
 _base = _load("wake_base", "planner_wake/base.py")
+_state_store = _load("state_store")
 
 
 @dataclass(frozen=True)
@@ -38,6 +39,7 @@ class ReportingCoordinator:
         self.policy = policy
         self.channels = _channel.PlannerChannelStore(self.repo)
         self.events = _wake.WakeEventStore(self.repo)
+        self.store = _state_store.StateStore(self.repo)
 
     def _state(self, task_id: str):
         path = self.repo / "docs/agent/tasks" / task_id / "STATE.md"
@@ -66,20 +68,23 @@ class ReportingCoordinator:
                 return ReportingDecision("blocked", task_id, detail="Planner channel is not registered")
             if channel.participant_id != state.get("current_participant"):
                 return ReportingDecision("blocked", task_id, detail="Planner participant does not match channel")
-            key = _wake.WakeKey(task_id, int(state["revision"]), channel.participant_id, channel.conversation_id).value()
+            wake_revision, key = self.store.prepare_reporting_wake(
+                task_id, int(state["revision"]), channel.participant_id, channel.conversation_id
+            )
             latest = self.events.latest(key)
             adapter = self.adapter_factory(channel.tool)
             if latest is None:
                 self.events.append({"wake_key": key, "status": "submitting", "attempt": 1})
                 receipt = adapter.submit_report(
                     channel,
-                    _base.WakeRequest(self.repo, task_id, int(state["revision"]), channel.participant_id, key),
+                    _base.WakeRequest(self.repo, task_id, wake_revision, channel.participant_id, key),
                 )
                 self.events.append({
                     "wake_key": key, "status": "submitted", "attempt": 1,
                     "tool": receipt.tool, "conversation_id": receipt.conversation_id,
                     "receipt_id": receipt.remote_id,
                 })
+                self.store.set_reporting_phase(task_id, wake_revision, key, "submitted")
                 return ReportingDecision("report_submitted", task_id, key)
             if latest["status"] == "submitting":
                 reconcile = getattr(adapter, "reconcile", None)
@@ -91,6 +96,7 @@ class ReportingCoordinator:
                     "tool": receipt.tool, "conversation_id": receipt.conversation_id,
                     "receipt_id": receipt.remote_id,
                 })
+                self.store.set_reporting_phase(task_id, wake_revision, key, "submitted")
             submitted = self.events.find_submission(key)
             if submitted is None:
                 return ReportingDecision("blocked", task_id, key, "submission receipt is unavailable")
@@ -99,6 +105,8 @@ class ReportingCoordinator:
                 adapter.present(channel)
                 self.events.append({"wake_key": key, "status": "completed", "attempt": submitted.get("attempt", 1)})
                 return ReportingDecision("report_completed", task_id, key)
+            if observed.status == "active":
+                self.store.set_reporting_phase(task_id, wake_revision, key, "active")
             return ReportingDecision("report_active", task_id, key, observed.detail)
         except Exception as error:
             return ReportingDecision("blocked", task_id, detail=f"{type(error).__name__}: {error}")

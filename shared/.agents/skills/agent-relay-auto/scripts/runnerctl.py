@@ -18,6 +18,7 @@ sys.path.insert(0, str(SCRIPTS))
 from agent_relay_runtime.adapters.factory import AdapterConfigurationError, load_agent_policy  # noqa: E402
 from agent_relay_runtime.registry import ProjectRegistry  # noqa: E402
 from agent_relay_runtime.markdown_state import parse_fenced_yaml  # noqa: E402
+from agent_relay_runtime.planner_channel import PlannerChannelError, PlannerChannelStore  # noqa: E402
 
 
 LABEL = "com.agent-relay-auto.runner"
@@ -107,7 +108,7 @@ class RunnerController:
                 last_run_result = task.get("last_run_result")
                 runner_action = {
                     "PLANNING": "waiting_foreground_planner",
-                    "REPORTING": "waiting_foreground_planner",
+                    "REPORTING": "reporting_active",
                     "WAITING_USER": "waiting_user",
                     "BLOCKED": "blocked",
                     "DONE": "done",
@@ -143,6 +144,17 @@ class RunnerController:
             roles = load_agent_policy(repo)
         except AdapterConfigurationError as error:
             raise RunnerControlError(str(error)) from error
+        try:
+            channel = PlannerChannelStore(repo).load()
+        except PlannerChannelError as error:
+            raise RunnerControlError(f"Planner channel is invalid: {error}") from error
+        if channel is None:
+            raise RunnerControlError(
+                "Planner channel is missing; run $agent-relay-auto continue in the intended Planner conversation"
+            )
+        planner = roles.get("planner")
+        if planner is None or channel.participant_id != planner.participant_id or channel.tool != planner.agent:
+            raise RunnerControlError("Planner channel does not match the configured Planner role")
         if not self.plist_path.is_file():
             raise RunnerControlError(f"Runner service is not installed: missing {self.plist_path}")
         self.registry.register(repo)

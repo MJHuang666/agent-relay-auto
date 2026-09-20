@@ -140,10 +140,20 @@ class SupervisorTests(unittest.TestCase):
             self.assertEqual(decision.action, "waiting_foreground_planner")
             self.assertEqual(decision.detail, "PLANNING")
 
-    def test_reporting_waits_for_foreground_planner_without_starting_process(self):
+    def test_reporting_delegates_to_reporting_coordinator(self):
         class NeverStartAdapter:
             def capabilities(self):
                 raise AssertionError("foreground planner must not inspect adapter capabilities")
+
+        class FakeReportingCoordinator:
+            def __init__(self):
+                self.calls = []
+
+            def tick(self, task_id):
+                self.calls.append(task_id)
+                return SimpleNamespace(
+                    action="report_submitted", task_id=task_id, wake_key="wake-4", detail=""
+                )
 
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
@@ -152,9 +162,12 @@ class SupervisorTests(unittest.TestCase):
             (repo / "docs/agent/PROJECT_STATUS.md").write_text(PROJECT, encoding="utf-8")
             reporting = STATE.replace("status: PLANNING", "status: REPORTING")
             (task / "STATE.md").write_text(reporting, encoding="utf-8")
-            decision = supervisor_module.ProjectSupervisor(repo, NeverStartAdapter()).tick()
-            self.assertEqual(decision.action, "waiting_foreground_planner")
-            self.assertEqual(decision.detail, "REPORTING")
+            coordinator = FakeReportingCoordinator()
+            decision = supervisor_module.ProjectSupervisor(
+                repo, NeverStartAdapter(), reporting=coordinator
+            ).tick()
+            self.assertEqual(decision.action, "report_submitted")
+            self.assertEqual(coordinator.calls, ["TASK-001"])
 
 
 if __name__ == "__main__":

@@ -58,7 +58,12 @@ class ReportingCoordinatorTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         adapter = FakeAdapter()
         coordinator = reporting.ReportingCoordinator(repo, lambda tool: adapter, config.ReportingPolicy())
-        self.assertEqual(coordinator.tick("TASK-001").action, "report_submitted")
+        first = coordinator.tick("TASK-001")
+        self.assertEqual(first.action, "report_submitted")
+        state = (repo / "docs/agent/tasks/TASK-001/STATE.md").read_text(encoding="utf-8")
+        self.assertIn("revision: 19", state)
+        self.assertIn(first.wake_key, state)
+        self.assertIn('"phase":"submitted"', state)
         self.assertEqual(coordinator.tick("TASK-001").action, "report_active")
         self.assertEqual(adapter.submit_count, 1)
 
@@ -67,7 +72,7 @@ class ReportingCoordinatorTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         adapter = FakeAdapter()
         adapter.remote_has_wake_key = True
-        key = wake_module.WakeKey("TASK-001", 18, "planner-codex", "thr-1").value()
+        key = wake_module.WakeKey("TASK-001", 19, "planner-codex", "thr-1").value()
         wake_module.WakeEventStore(repo).append({"wake_key": key, "status": "submitting", "attempt": 1})
         coordinator = reporting.ReportingCoordinator(repo, lambda tool: adapter, config.ReportingPolicy())
         self.assertEqual(coordinator.tick("TASK-001").action, "report_active")

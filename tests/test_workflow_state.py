@@ -227,6 +227,74 @@ created_at: "2026-01-01T00:00:00Z"
             (self.repo / "docs/agent/tasks/TASK-001/progress/002-agent-replacement-cursor.md").exists()
         )
 
+    def test_planner_replacement_is_rejected_while_reporting_wake_is_active(self):
+        bindings = (self.repo / "docs/agent/role-bindings.md")
+        text = bindings.read_text(encoding="utf-8").replace(
+            "| impl-a | cursor",
+            "| planner-b | codex | Planner | profiles/codex/planner-b.md | standby | 2026-01-01T00:00:00Z |\n| impl-a | cursor",
+        )
+        bindings.write_text(text, encoding="utf-8")
+        (self.repo / "docs/agent/profiles/codex/planner-b.md").write_text(
+            '# Planner B\n\n```yaml\nparticipant_id: "planner-b"\ntool: "codex"\n'
+            'role: "planner"\nstatus: standby\n```\n',
+            encoding="utf-8",
+        )
+        state_path = self.repo / "docs/agent/tasks/TASK-001/STATE.md"
+        state_path.write_text(
+            self.state_text()
+            .replace("status: IMPLEMENTING", "status: REPORTING")
+            .replace("current_role: implementer", "current_role: planner")
+            .replace('current_participant: "impl-a"', 'current_participant: "planner-a"')
+            .replace(
+                "updated_at:",
+                'reporting: {"phase":"active","wake_key":"wake-7"}\nupdated_at:',
+            ),
+            encoding="utf-8",
+        )
+        before_state = state_path.read_bytes()
+        before_bindings = bindings.read_bytes()
+        result = self.run_cli(
+            "replace-agent", "--role", "planner", "--from", "planner-a", "--to", "planner-b",
+            "--scope", "current-task", "--expected-revision", "7", "--reason", "switch",
+            "--authorization", "approved", "--planner-conversation-id", "thread-b", expect=2,
+        )
+        self.assertIn("reporting", result.stderr.lower())
+        self.assertEqual(state_path.read_bytes(), before_state)
+        self.assertEqual(bindings.read_bytes(), before_bindings)
+
+    def test_idle_planner_replacement_rebinds_exact_local_conversation(self):
+        bindings = self.repo / "docs/agent/role-bindings.md"
+        bindings.write_text(
+            bindings.read_text(encoding="utf-8").replace(
+                "| impl-a | cursor",
+                "| planner-b | codex | Planner | profiles/codex/planner-b.md | standby | 2026-01-01T00:00:00Z |\n| impl-a | cursor",
+            ),
+            encoding="utf-8",
+        )
+        (self.repo / "docs/agent/profiles/codex/planner-b.md").write_text(
+            '# Planner B\n\n```yaml\nparticipant_id: "planner-b"\ntool: "codex"\n'
+            'role: "planner"\nstatus: standby\n```\n',
+            encoding="utf-8",
+        )
+        state_path = self.repo / "docs/agent/tasks/TASK-001/STATE.md"
+        state_path.write_text(
+            self.state_text()
+            .replace("status: IMPLEMENTING", "status: PLANNING")
+            .replace("current_role: implementer", "current_role: planner")
+            .replace('current_participant: "impl-a"', 'current_participant: "planner-a"'),
+            encoding="utf-8",
+        )
+        self.run_cli(
+            "replace-agent", "--role", "planner", "--from", "planner-a", "--to", "planner-b",
+            "--scope", "current-task", "--expected-revision", "7", "--reason", "quota",
+            "--authorization", "approved", "--planner-conversation-id", "thread-planner-b",
+        )
+        channel = json.loads(
+            (self.repo / ".agent-relay-auto/planner-channel.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(channel["participant_id"], "planner-b")
+        self.assertEqual(channel["conversation_id"], "thread-planner-b")
+
     def test_project_default_replacement_does_not_mutate_active_task(self):
         before = self.state_text()
         result = self.run_cli(
