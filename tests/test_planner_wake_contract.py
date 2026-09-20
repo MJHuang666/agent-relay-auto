@@ -20,6 +20,12 @@ class PlannerWakeContractTests(unittest.TestCase):
         with self.assertRaisesRegex(factory_module.WakeAdapterUnavailable, "opencode"):
             factory("opencode")
 
+    def test_default_factory_registers_three_verified_cli_tools(self):
+        factory = factory_module.create_planner_wake_factory()
+        self.assertEqual(type(factory("codex")).__name__, "CodexPlannerWakeAdapter")
+        self.assertEqual(type(factory("opencode")).__name__, "OpenCodePlannerWakeAdapter")
+        self.assertEqual(type(factory("claude-code")).__name__, "ClaudeCodePlannerWakeAdapter")
+
     def test_capability_labels_are_closed_and_prompt_has_authority_fields(self):
         with self.assertRaises(base.WakeContractError):
             base.WakeCapabilities("verified", "verified", "maybe", "verified")
