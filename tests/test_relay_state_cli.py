@@ -160,6 +160,13 @@ class RelayStateCliTests(unittest.TestCase):
             "execution.md#delivery-1",
         )
         state_store.StateStore(self.repo).finish_run("TASK-001", "run-review-1", 0)
+        state_path = self.repo / "docs/agent/tasks/TASK-001/STATE.md"
+        state_text = state_path.read_text(encoding="utf-8")
+        state_text = state_text.replace(
+            "blocked_reason: null",
+            "blocked_reason: null\ndelivery_id: delivery-1\nreporting:\n  phase: active\n  wake_key: wake-1",
+        )
+        state_path.write_text(state_text, encoding="utf-8")
         report = self.repo / "report.md"
         report.write_text("# Final Report\n\nGoal\nDelivery\nTests\nReviewer evidence\nLimitations\nUsage\nNot executed: merge, push, release, deploy\n", encoding="utf-8")
         self.run_cli(
@@ -172,10 +179,62 @@ class RelayStateCliTests(unittest.TestCase):
             str(report),
             "--participant-id",
             "planner-a",
+            "--wake-key",
+            "wake-1",
+            "--review-delivery-id",
+            "delivery-1",
             "--review-ref",
             str(evidence),
         )
-        self.assertIn("status: DONE", (self.repo / "docs/agent/tasks/TASK-001/STATE.md").read_text())
+        completed_state = (self.repo / "docs/agent/tasks/TASK-001/STATE.md").read_text()
+        completed_project = (self.repo / "docs/agent/PROJECT_STATUS.md").read_text()
+        self.assertIn("status: DONE", completed_state)
+        self.assertIn('reporting: {"phase":"completed","wake_key":"wake-1"}', completed_state)
+        self.assertIn("active_task: null", completed_project)
+        self.assertIn('active: []', completed_project)
+        self.assertIn('completed: ["TASK-001"]', completed_project)
+
+    def test_report_done_rejects_mismatched_wake_delivery_and_runner_identity_without_mutation(self):
+        task = self.repo / "docs/agent/tasks/TASK-001"
+        review = task / "review.md"
+        review.write_text("Reviewer PASS evidence for delivery-1\n", encoding="utf-8")
+        report = task / "final-report.md"
+        report.write_text(
+            "Goal\nDelivery\nTests\nReviewer evidence\nLimitations\nUsage\n"
+            "Not executed: merge, push, release, deploy\n",
+            encoding="utf-8",
+        )
+        state_path = task / "STATE.md"
+        state_path.write_text(
+            STATE.replace("status: REVIEWING", "status: REPORTING")
+            .replace("current_role: reviewer", "current_role: planner")
+            .replace("current_participant: reviewer-a", "current_participant: planner-a")
+            .replace("revision: 4", "revision: 9")
+            .replace(
+                "blocked_reason: null",
+                "blocked_reason: null\nreview_ref: review.md\ndelivery_id: delivery-1\n"
+                "reporting:\n  phase: active\n  wake_key: wake-9",
+            ),
+            encoding="utf-8",
+        )
+        project_path = self.repo / "docs/agent/PROJECT_STATUS.md"
+
+        for participant, wake_key, delivery_id, expected_message in (
+            ("planner-a", "wrong", "delivery-1", "wake_key"),
+            ("planner-a", "wake-9", "delivery-2", "delivery_id"),
+            ("runner", "wake-9", "delivery-1", "Runner"),
+        ):
+            before_state = state_path.read_bytes()
+            before_project = project_path.read_bytes()
+            result = self.run_cli(
+                "report-done", "--task", "TASK-001", "--expected-revision", "9",
+                "--participant-id", participant, "--wake-key", wake_key,
+                "--review-delivery-id", delivery_id, "--report", str(report),
+                "--review-ref", "review.md", expected=3,
+            )
+            self.assertIn(expected_message, result.stderr)
+            self.assertEqual(state_path.read_bytes(), before_state)
+            self.assertEqual(project_path.read_bytes(), before_project)
 
     def test_subagent_answer_updates_policy_and_rejects_invalid_value_without_artifact(self):
         question = self.repo / "question.md"

@@ -88,9 +88,16 @@ class HybridRelayE2ETests(unittest.TestCase):
                 "Not executed: merge, push, release, deploy\n"
             )
             state = self.read_state(task)
+            state_text = (task / "STATE.md").read_text(encoding="utf-8")
+            state_text = markdown.set_yaml_value(state_text, ("delivery_id",), "delivery-e2e-1")
+            state_text = markdown.set_yaml_value(
+                state_text, ("reporting",), {"phase": "active", "wake_key": "wake-e2e-1"}
+            )
+            (task / "STATE.md").write_text(state_text, encoding="utf-8")
             self.run_cli(
                 repo, "report-done", "--task", "TASK-001",
                 "--expected-revision", state["revision"], "--participant-id", "planner-a",
+                "--wake-key", "wake-e2e-1", "--review-delivery-id", "delivery-e2e-1",
                 "--report", report, "--review-ref", state["review_ref"],
             )
             self.assertEqual(self.read_state(task)["status"], "DONE")

@@ -283,6 +283,101 @@ class StateStore:
             self._write_state(path, text, values)
             return TransitionResult(task_id, expected_status, new_status, expected_revision, expected_revision + 1)
 
+    def complete_report(
+        self,
+        task_id: str,
+        expected_revision: int,
+        participant_id: str,
+        wake_key: str,
+        review_delivery_id: str,
+        review_ref: str,
+        report_ref: str,
+    ) -> TransitionResult:
+        """Finish REPORTING only for the registered foreground Planner wake."""
+        with _state_lock(self.repo, "complete-report"):
+            path, text, state = self._read_task(task_id)
+            if state.get("task") != task_id:
+                raise TransitionError(
+                    f"task identity mismatch: expected {task_id}, actual {state.get('task')}"
+                )
+            if state.get("revision") != expected_revision:
+                raise RevisionConflict(
+                    f"revision mismatch: expected {expected_revision}, actual {state.get('revision')}"
+                )
+            if state.get("status") != "REPORTING":
+                raise TransitionError(f"illegal transition: {state.get('status')} + report_completed")
+            if "runner" in participant_id.lower():
+                raise TransitionError("Runner identity cannot complete Planner reporting")
+            assignments = state.get("assignments") if isinstance(state.get("assignments"), Mapping) else {}
+            assigned_planner = assignments.get("planner")
+            if (
+                state.get("current_role") != "planner"
+                or state.get("current_participant") != participant_id
+                or assigned_planner != participant_id
+            ):
+                raise TransitionError(
+                    "Planner identity mismatch: "
+                    f"expected planner/{assigned_planner}, actual "
+                    f"{state.get('current_role')}/{state.get('current_participant')}"
+                )
+            reporting = state.get("reporting") if isinstance(state.get("reporting"), Mapping) else {}
+            if reporting.get("wake_key") != wake_key:
+                raise TransitionError(
+                    f"wake_key mismatch: expected {reporting.get('wake_key')}, actual {wake_key}"
+                )
+            if state.get("delivery_id") != review_delivery_id:
+                raise TransitionError(
+                    "review delivery_id mismatch: "
+                    f"expected {state.get('delivery_id')}, actual {review_delivery_id}"
+                )
+            if not state.get("review_ref") or state.get("review_ref") != review_ref:
+                raise TransitionError(
+                    f"review_ref mismatch: expected {state.get('review_ref')}, actual {review_ref}"
+                )
+
+            project_path = self._project_path()
+            project_text = project_path.read_text(encoding="utf-8")
+            project = parse_fenced_yaml(project_text)
+            tasks = project.get("tasks") if isinstance(project.get("tasks"), Mapping) else {}
+            active = [item for item in tasks.get("active", []) if item != task_id]
+            completed = list(tasks.get("completed", []))
+            if task_id not in completed:
+                completed.append(task_id)
+            completed_reporting = dict(reporting)
+            completed_reporting["phase"] = "completed"
+            self._write_state(
+                path,
+                text,
+                {
+                    ("status",): "DONE",
+                    ("previous_role",): "planner",
+                    ("previous_participant",): participant_id,
+                    ("previous_progress",): report_ref,
+                    ("report_ref",): report_ref,
+                    ("reporting",): completed_reporting,
+                    ("current_role",): "planner",
+                    ("current_participant",): participant_id,
+                    ("run_id",): None,
+                    ("run_status",): "idle",
+                    ("writer_session",): None,
+                    ("execution",): "idle",
+                    ("stage_round",): int(state.get("stage_round", 1)) + 1,
+                    ("revision",): expected_revision + 1,
+                    ("updated_at",): now_iso(),
+                },
+            )
+
+            self._write_state(
+                project_path,
+                project_text,
+                {
+                    ("active_task",): None if project.get("active_task") == task_id else project.get("active_task"),
+                    ("tasks", "active"): active,
+                    ("tasks", "completed"): completed,
+                },
+            )
+            return TransitionResult(task_id, "REPORTING", "DONE", expected_revision, expected_revision + 1)
+
     def claim(self, key: ClaimKey, run_id: str) -> TransitionResult:
         with _state_lock(self.repo, "claim"):
             path, text, state = self._read_task(key.task_id)

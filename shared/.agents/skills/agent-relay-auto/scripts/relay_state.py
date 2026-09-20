@@ -155,15 +155,16 @@ def _report_done(args: argparse.Namespace) -> dict:
     missing = [term for term in required if term not in content]
     if missing:
         raise ValueError("final report is missing sections: " + ", ".join(missing))
-    _require_task_reference(Path(args.repo).resolve(), args.task, args.review_ref, "review")
-    result = StateStore(Path(args.repo).resolve()).complete_stage(
+    repo = Path(args.repo).resolve()
+    _require_task_reference(repo, args.task, args.review_ref, "review")
+    result = StateStore(repo).complete_report(
         args.task,
         args.expected_revision,
-        "planner",
         args.participant_id,
-        None,
-        "report_completed",
-        StageEvidence(progress_ref=str(report), review_ref=args.review_ref, report_ref=str(report)),
+        args.wake_key,
+        args.review_delivery_id,
+        args.review_ref,
+        str(report),
     )
     return result.__dict__
 
@@ -287,6 +288,8 @@ def parser() -> argparse.ArgumentParser:
     report.add_argument("--expected-revision", type=int, required=True)
     report.add_argument("--report", required=True)
     report.add_argument("--participant-id", required=True)
+    report.add_argument("--wake-key", required=True)
+    report.add_argument("--review-delivery-id", required=True)
     report.add_argument("--review-ref", required=True)
     cancel = commands.add_parser("cancel")
     cancel.add_argument("--task", required=True)

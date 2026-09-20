@@ -35,6 +35,10 @@ latest_checkpoint: null
 plan_version: null
 approval_ref: null
 code_delivery_ref: null
+delivery_id: null
+review_ref: null
+report_ref: null
+reporting: null
 next_expected_output: requirement.md
 question_id: null
 question_ref: null

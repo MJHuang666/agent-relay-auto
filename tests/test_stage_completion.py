@@ -89,6 +89,31 @@ class StageCompletionTests(unittest.TestCase):
             "--approval-ref", "approval.md", "--progress", str(self.task / "progress.md"), expected=2,
         )
 
+    def test_report_done_requires_matching_persisted_reviewer_evidence(self):
+        self.state_path.write_text(
+            self.state_path.read_text(encoding="utf-8")
+            .replace("status: IMPLEMENTING", "status: REPORTING")
+            .replace("revision: 5", "revision: 8")
+            .replace("current_role: implementer", "current_role: planner")
+            .replace("current_participant: impl-a", "current_participant: planner-a")
+            .replace("writer_session: run-impl-1", "writer_session: null")
+            .replace(
+                "code_delivery_ref: null",
+                "code_delivery_ref: execution.md#delivery-1\nreview_ref: review.md\n"
+                "delivery_id: delivery-1\nreporting:\n  phase: active\n  wake_key: wake-8",
+            ),
+            encoding="utf-8",
+        )
+        before = self.state_path.read_bytes()
+        (self.task / "other-review.md").write_text("different review evidence\n", encoding="utf-8")
+        self.run_cli(
+            "report-done", "--task", "TASK-001", "--expected-revision", "8",
+            "--participant-id", "planner-a", "--wake-key", "wake-8",
+            "--review-delivery-id", "delivery-1", "--report", str(self.task / "report.md"),
+            "--review-ref", "other-review.md", expected=3,
+        )
+        self.assertEqual(self.state_path.read_bytes(), before)
+
 
 if __name__ == "__main__":
     unittest.main()
