@@ -26,7 +26,7 @@ def _load_sibling(name: str):
 
 
 try:
-    from .base import AdapterCapabilities, LaunchRequest
+    from .base import AdapterCapabilities, LaunchContext, LaunchRequest
     from .claude_code import ClaudeCodeAdapter
     from .codex import CodexAdapter
     from .opencode import OpenCodeAdapter
@@ -34,6 +34,7 @@ except ImportError:
     _base = _load_sibling("base")
     AdapterCapabilities = _base.AdapterCapabilities
     LaunchRequest = _base.LaunchRequest
+    LaunchContext = _base.LaunchContext
     ClaudeCodeAdapter = _load_sibling("claude_code").ClaudeCodeAdapter
     CodexAdapter = _load_sibling("codex").CodexAdapter
     OpenCodeAdapter = _load_sibling("opencode").OpenCodeAdapter
@@ -56,6 +57,16 @@ class RoleAdapterConfiguration:
     model: str
     reasoning: str
     validation_status: str
+    execution_mode: str
+
+
+def _execution_mode(role: str, raw: str) -> str:
+    value = raw or ("foreground" if role == "planner" else "background")
+    if value not in {"foreground", "background"}:
+        raise AdapterConfigurationError(f"role {role} has invalid execution_mode {value}")
+    if role == "planner" and value != "foreground":
+        raise AdapterConfigurationError("planner execution_mode must be foreground")
+    return value
 
 
 def _scalar(raw: str) -> str:
@@ -112,9 +123,14 @@ def load_agent_policy(repo: Path, require_automatic: bool = True) -> dict[str, R
         if values is None:
             raise AdapterConfigurationError(f"{repo}: role {role} is missing from automation-policy.yaml")
         agent = values.get("agent", "")
+        execution_mode = _execution_mode(role, values.get("execution_mode", ""))
         reasoning_key = _REASONING_KEYS.get(agent)
-        if reasoning_key is None:
+        if reasoning_key is None and execution_mode == "background":
             raise AdapterConfigurationError(f"{repo}: role {role} uses unsupported automatic agent {agent or 'missing'}")
+        reasoning_key = reasoning_key or next(
+            (key for key in ("reasoning_effort", "variant", "effort", "reasoning") if values.get(key)),
+            "reasoning",
+        )
         required = {
             "participant_id": values.get("participant_id", ""),
             "model": values.get("model", ""),
@@ -130,6 +146,7 @@ def load_agent_policy(repo: Path, require_automatic: bool = True) -> dict[str, R
             model=required["model"],
             reasoning=required[reasoning_key],
             validation_status=values.get("validation_status", "pending"),
+            execution_mode=execution_mode,
         )
     return result
 
@@ -150,9 +167,15 @@ class RoleRoutingAdapter:
             raise AdapterConfigurationError(
                 f"{self.repo}: role {request.role} expects participant {config.participant_id}, found {request.participant_id}"
             )
+        if config.execution_mode != "background":
+            raise AdapterConfigurationError(f"{self.repo}: role {request.role} is foreground-only")
         adapter = self.adapters[config.agent]
         configured = replace(request, model=config.model, reasoning=config.reasoning)
         return adapter, configured
+
+    def is_background_role(self, role: str) -> bool:
+        config = self.roles.get(role)
+        return config is not None and config.execution_mode == "background"
 
     def capabilities(self) -> AdapterCapabilities:
         capabilities = [adapter.capabilities() for adapter in self.adapters.values()]
@@ -168,9 +191,9 @@ class RoleRoutingAdapter:
         adapter, _ = self._resolved(request)
         return adapter.capabilities()
 
-    def build_command(self, request: LaunchRequest) -> tuple[str, ...]:
+    def build_command(self, request: LaunchRequest, context: LaunchContext) -> tuple[str, ...]:
         adapter, configured = self._resolved(request)
-        return adapter.build_command(configured)
+        return adapter.build_command(configured, context)
 
     def resume_command(self, request: LaunchRequest, session_id: str) -> tuple[str, ...]:
         adapter, configured = self._resolved(request)
@@ -194,7 +217,7 @@ def create_adapter_factory(
 
     def build(repo: Path) -> RoleRoutingAdapter:
         roles = load_agent_policy(repo)
-        agents = {config.agent for config in roles.values()}
+        agents = {config.agent for config in roles.values() if config.execution_mode == "background"}
         missing = sorted(agents.difference(configured_builders))
         if missing:
             raise AdapterConfigurationError(f"{Path(repo).resolve()}: no adapter builder for {', '.join(missing)}")

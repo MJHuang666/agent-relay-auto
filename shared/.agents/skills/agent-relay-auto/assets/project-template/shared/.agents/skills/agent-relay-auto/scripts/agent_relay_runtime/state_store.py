@@ -73,6 +73,38 @@ class TransitionResult:
     idempotent_replay: bool = False
 
 
+@dataclass(frozen=True)
+class StageEvidence:
+    progress_ref: str
+    delivery_ref: str | None = None
+    review_ref: str | None = None
+    report_ref: str | None = None
+
+
+@dataclass(frozen=True)
+class RunFinalization:
+    action: str
+    task_id: str
+    run_id: str
+    input_revision: int
+    output_revision: int
+    idempotent_replay: bool = False
+
+
+def classify_run_result(
+    start_status: str, current_status: str, exit_code: int, termination_reason: str
+) -> str:
+    if current_status != start_status:
+        return "completed"
+    if termination_reason == "timeout":
+        return "timeout"
+    if termination_reason == "interrupted":
+        return "interrupted"
+    if exit_code == 0:
+        return "protocol_failure"
+    return "agent_failure"
+
+
 def now_iso() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
 
@@ -122,10 +154,20 @@ _TRANSITIONS = {
     ("REPORTING", "report_completed"): "DONE",
 }
 
+_ROLE_EVENTS = {
+    ("planner", "plan_completed"): ("PLANNING", "IMPLEMENTING", "implementer"),
+    ("implementer", "implementation_completed"): ("IMPLEMENTING", "REVIEWING", "reviewer"),
+    ("reviewer", "review_passed"): ("REVIEWING", "REPORTING", "planner"),
+    ("reviewer", "changes_requested"): ("REVIEWING", "IMPLEMENTING", "implementer"),
+    ("reviewer", "replan_required"): ("REVIEWING", "PLANNING", "planner"),
+    ("planner", "report_completed"): ("REPORTING", "DONE", "planner"),
+}
+
 
 class StateStore:
-    def __init__(self, repo: Path):
+    def __init__(self, repo: Path, max_agent_retries: int = 1):
         self.repo = Path(repo).resolve()
+        self.max_agent_retries = max_agent_retries
 
     def _project_path(self) -> Path:
         return self.repo / "docs/agent/PROJECT_STATUS.md"
@@ -176,6 +218,71 @@ class StateStore:
             self._write_state(path, text, values)
             return TransitionResult(task_id, old_status, new_status, expected_revision, expected_revision + 1)
 
+    def complete_stage(
+        self,
+        task_id: str,
+        expected_revision: int,
+        role: str,
+        participant_id: str,
+        run_id: str | None,
+        event: str,
+        evidence: StageEvidence,
+    ) -> TransitionResult:
+        rule = _ROLE_EVENTS.get((role, event))
+        if rule is None:
+            raise TransitionError(f"role {role} cannot submit event {event}")
+        expected_status, new_status, next_role = rule
+        with _state_lock(self.repo, f"complete-stage:{event}"):
+            path, text, state = self._read_task(task_id)
+            if state.get("revision") != expected_revision:
+                raise RevisionConflict(
+                    f"revision mismatch: expected {expected_revision}, actual {state.get('revision')}"
+                )
+            if state.get("status") != expected_status:
+                raise TransitionError(f"illegal transition: {state.get('status')} + {event}")
+            if state.get("current_role") != role or state.get("current_participant") != participant_id:
+                raise TransitionError(
+                    f"role identity mismatch: expected {role}/{participant_id}, "
+                    f"actual {state.get('current_role')}/{state.get('current_participant')}"
+                )
+            if role in {"implementer", "reviewer"}:
+                if not run_id or state.get("run_id") != run_id or state.get("writer_session") != run_id:
+                    raise TransitionError(
+                        f"run identity mismatch: expected {run_id}, actual {state.get('run_id')}"
+                    )
+            elif run_id is not None:
+                raise TransitionError("foreground planner completion cannot carry a background run ID")
+            assignments = state.get("assignments") if isinstance(state.get("assignments"), Mapping) else {}
+            next_participant = assignments.get(next_role) or (
+                participant_id if next_role == role else f"{next_role}-main"
+            )
+            values: dict[tuple[str, ...], object] = {
+                ("status",): new_status,
+                ("previous_role",): role,
+                ("previous_participant",): participant_id,
+                ("previous_progress",): evidence.progress_ref,
+                ("current_role",): next_role,
+                ("current_participant",): next_participant,
+                ("stage_round",): int(state.get("stage_round", 1)) + 1,
+                ("revision",): expected_revision + 1,
+                ("updated_at",): now_iso(),
+            }
+            if evidence.delivery_ref is not None:
+                values[("code_delivery_ref",)] = evidence.delivery_ref
+            if evidence.review_ref is not None:
+                values[("review_ref",)] = evidence.review_ref
+            if evidence.report_ref is not None:
+                values[("report_ref",)] = evidence.report_ref
+            if event == "changes_requested":
+                values[("rework_round",)] = int(state.get("rework_round", 0)) + 1
+            if event == "replan_required":
+                values[("auto_replan_count",)] = int(state.get("auto_replan_count", 0)) + 1
+            if role == "planner":
+                values[("writer_session",)] = None
+                values[("execution",)] = "idle"
+            self._write_state(path, text, values)
+            return TransitionResult(task_id, expected_status, new_status, expected_revision, expected_revision + 1)
+
     def claim(self, key: ClaimKey, run_id: str) -> TransitionResult:
         with _state_lock(self.repo, "claim"):
             path, text, state = self._read_task(key.task_id)
@@ -212,24 +319,63 @@ class StateStore:
             status = str(state.get("status"))
             return TransitionResult(key.task_id, status, status, key.expected_revision, new_revision)
 
-    def finish_run(self, task_id: str, run_id: str, exit_code: int) -> TransitionResult:
+    def finish_run(
+        self,
+        task_id: str,
+        run_id: str,
+        exit_code: int,
+        start_status: str | None = None,
+        termination_reason: str = "exit",
+    ) -> RunFinalization:
         with _state_lock(self.repo, "finish-run"):
             path, text, state = self._read_task(task_id)
-            if state.get("run_id") != run_id:
-                raise StateStoreError(f"run identity mismatch: expected {run_id}, actual {state.get('run_id')}")
             input_revision = int(state.get("revision"))
-            output_revision = input_revision + 1
-            self._write_state(
-                path,
-                text,
-                {
-                    ("run_status",): "finished",
-                    ("run_exit_code",): exit_code,
-                    ("run_id",): None,
-                    ("writer_session",): None,
-                    ("revision",): output_revision,
-                    ("updated_at",): now_iso(),
-                },
+            if state.get("last_finished_run_id") == run_id:
+                return RunFinalization(
+                    str(state.get("last_run_action") or "already_finalized"),
+                    task_id,
+                    run_id,
+                    input_revision,
+                    input_revision,
+                    True,
+                )
+            if state.get("run_id") != run_id:
+                raise StateStoreError(
+                    f"run identity mismatch: expected {run_id}, actual {state.get('run_id')}"
+                )
+            current_status = str(state.get("status"))
+            # The legacy three-argument call means the caller already handled
+            # the role protocol and only needs the lease released.
+            result = (
+                "completed"
+                if start_status is None
+                else classify_run_result(start_status, current_status, exit_code, termination_reason)
             )
-            status = str(state.get("status"))
-            return TransitionResult(task_id, status, status, input_revision, output_revision)
+            failures = int(state.get("agent_failure_count", 0))
+            action = "completed"
+            values: dict[tuple[str, ...], object] = {
+                ("run_status",): "finished",
+                ("run_exit_code",): exit_code,
+                ("last_finished_run_id",): run_id,
+                ("last_run_result",): result,
+                ("run_id",): None,
+                ("writer_session",): None,
+            }
+            if result != "completed":
+                failures += 1
+                values[("agent_failure_count",)] = failures
+                if failures <= self.max_agent_retries:
+                    action = "retry"
+                    values[("run_status",)] = "idle"
+                else:
+                    action = "blocked"
+                    values[("status",)] = "BLOCKED"
+                    detail = "no_handoff" if result == "protocol_failure" else result
+                    values[("blocked_reason",)] = f"{result}: {detail}"
+                    values[("unblock_condition",)] = "inspect run logs and resume or replace the assigned Agent"
+            values[("last_run_action",)] = action
+            output_revision = input_revision + 1
+            values[("revision",)] = output_revision
+            values[("updated_at",)] = now_iso()
+            self._write_state(path, text, values)
+            return RunFinalization(action, task_id, run_id, input_revision, output_revision)

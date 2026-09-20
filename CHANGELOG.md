@@ -2,6 +2,15 @@
 
 All notable changes to Agent Relay Auto are documented here. Project Role Workflow and Agent Relay are legacy names retained only for migration history.
 
+## [1.7.0] - 2026-09-20
+
+- Made Planner foreground-only while Runner launches only Implementer and Reviewer in the background.
+- Added atomic `plan-done`, `implementation-done`, `verdict`, answer, and final-report transitions with revision, participant, run-ID, writer and evidence checks.
+- Added durable Worker process identity, launch context, heartbeat, stdout/stderr, exit and protocol records with restart reconciliation.
+- Classified exit 0 without a legal handoff as `protocol_failure: no_handoff`, with bounded retries and audited blocking.
+- Added revision-keyed attention notifications, workflow-aware health output and non-destructive v1.7 upgrade preflight.
+- Kept `DONE` separate from merge, push, release and deploy authorization.
+
 ## [1.6.3] - 2026-09-19
 
 - Made automatic handoffs wait for Runner results instead of instructing users to open the next role manually.

@@ -1,0 +1,40 @@
+language: zh-CN
+mode: manual
+automation:
+  max_rework_rounds: 3
+  max_auto_replans: 1
+  max_agent_retries: 1
+  allow_same_role_fallback: false
+cost_control:
+  mode: balanced
+  warn_after_agent_runs: 8
+  stop_after_agent_runs: 12
+  require_confirmation_after_warning: false
+  record_provider_usage: true
+runtime:
+  agent_timeout_minutes: 30
+  heartbeat_interval_seconds: 10
+  heartbeat_stale_seconds: 45
+  interrupt_grace_seconds: 30
+roles:
+  planner:
+    execution_mode: foreground
+    participant_id: <configure-in-chat>
+    agent: <configure-in-chat>
+    model: <configure-in-chat>
+    reasoning: <configure-in-chat>
+    validation_status: pending
+  implementer:
+    execution_mode: background
+    participant_id: <configure-in-chat>
+    agent: <configure-in-chat>
+    model: <configure-in-chat>
+    reasoning: <configure-in-chat>
+    validation_status: pending
+  reviewer:
+    execution_mode: background
+    participant_id: <configure-in-chat>
+    agent: <configure-in-chat>
+    model: <configure-in-chat>
+    reasoning: <configure-in-chat>
+    validation_status: pending

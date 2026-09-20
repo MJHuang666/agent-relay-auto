@@ -1,5 +1,7 @@
 # Agent Relay Auto Protocol
 
+自动模式中 Planner 固定为 `execution_mode: foreground`。Runner 对 `PLANNING` 和 `REPORTING` 返回 `waiting_foreground_planner`，只在后台启动 Implementer 与 Reviewer。后台角色必须使用 `implementation-done` 或 `verdict` 原子交接；退出 0 但未交接属于 `protocol_failure: no_handoff`。默认 `heartbeat_stale_seconds: 45`。
+
 This repository uses file-based collaboration between Planner, Implementer, and Reviewer.
 
 ## Language

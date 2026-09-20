@@ -4,15 +4,19 @@ The first Runner release is a macOS launchd service installed only after explici
 
 Runtime source is copied to `~/.local/share/agent-relay-auto/versions/<version>/`; launchd points at the stable `current` link. User configuration is under `~/.config/agent-relay-auto/`, while project-local `.agent-relay-auto/` contains ignored process logs, run metadata, heartbeats, and native session references.
 
-One project executes one active task and one role process at a time. Different registered projects have independent Supervisors and may run concurrently. `WAITING_USER` and `BLOCKED` retain the active slot until the user answers, resumes, shelves, or cancels the task.
+One project executes one active task and one background role process at a time. Different registered projects have independent Supervisors and may run concurrently. Planner is foreground-only. `PLANNING`, `REPORTING`, `WAITING_USER`, and `BLOCKED` wait for foreground action; minimizing the Planner UI does not stop a running Implementer or Reviewer.
 
 The Runner checks `task_id + expected_revision + participant_id + stage_round`, creates a `run_id`, and records PID, process start time, and writer session. On restart, a matching PID/start-time/run tuple is monitored; a possible PID reuse or unknown remote task is blocked.
 
 The normal automatic path is:
 
 ```text
-PLANNING → IMPLEMENTING → REVIEWING → REPORTING → DONE
+Planner foreground → Implementer background → Reviewer background → Planner foreground → DONE
 ```
+
+Runner reports `waiting_foreground_planner` in `PLANNING` and `REPORTING` and does not create a Planner run. Background stages complete only through `implementation-done` and `verdict`. Exit 0 without a legal handoff is `protocol_failure: no_handoff`; it retries only within `max_agent_retries` and otherwise becomes `BLOCKED`.
+
+Each run directory contains launch context, process identity, heartbeat, stdout/stderr, exit and protocol records. Defaults are `agent_timeout_minutes: 30`, `heartbeat_interval_seconds: 10`, `heartbeat_stale_seconds: 45`, and `interrupt_grace_seconds: 30`. `--ephemeral` controls Codex session persistence only, not process completion, state transition, timeout, or writer-lease release.
 
 Reviewer `PASS` requires a non-empty evidence file. Planner reporting requires the final report sections: goal, delivery, tests, Reviewer evidence, limitations, usage, and explicitly unexecuted merge/push/release/deploy actions.
 

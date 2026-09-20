@@ -38,5 +38,7 @@ jobs:
           python-version: '3.12'
       - name: Run automated Runner tests
         run: python3 -m unittest discover -s tests -v
+      - name: Prove foreground Planner hybrid loop
+        run: python3 -m unittest tests.test_hybrid_relay_e2e tests.test_protocol_failure -v
       - name: Validate Runner installer without installing launchd
         run: python3 shared/.agents/skills/agent-relay-auto/scripts/setup_runner.py install --source-skill shared/.agents/skills/agent-relay-auto --version ci --dry-run

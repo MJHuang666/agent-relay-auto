@@ -1,5 +1,7 @@
 # Multi-Agent Workflow
 
+In automatic mode Planner is `execution_mode: foreground`. Runner returns `waiting_foreground_planner` for planning/reporting and launches only background Implementer and Reviewer. They hand off through `implementation-done` and `verdict`; exit 0 without a transition is `protocol_failure: no_handoff`. Default `heartbeat_stale_seconds: 45`.
+
 ## Daily Path
 
 1. Read `PROJECT_STATUS.md.language`; use it for communication and new documents.

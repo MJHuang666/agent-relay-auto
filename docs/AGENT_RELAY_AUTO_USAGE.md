@@ -1,6 +1,8 @@
 # Agent Relay Auto 使用手册
 
-本文对应 `agent-relay-auto` Skill v1.6.3，说明初始化、任务接力、Agent 更换、暂停恢复、状态查询和最终验收。
+本文对应 `agent-relay-auto` Skill v1.7.0，说明初始化、任务接力、Agent 更换、暂停恢复、状态查询和最终验收。
+
+自动模式固定采用：Planner 前台沟通与交付 → Runner 后台 Implementer → Runner 后台 Reviewer → Planner 前台总结。Runner 对规划与汇报返回 `waiting_foreground_planner`，不会创建 Planner 后台进程。后台角色使用 `implementation-done` / `verdict` 交接；`protocol_failure: no_handoff` 会受限重试。默认 `heartbeat_stale_seconds: 45`。
 
 ## 1. 初始化仓库
 

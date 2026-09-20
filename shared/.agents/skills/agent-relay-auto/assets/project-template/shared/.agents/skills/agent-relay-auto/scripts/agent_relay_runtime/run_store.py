@@ -46,6 +46,43 @@ class RunStore:
         (path / "heartbeat.json").touch()
         return path
 
+    def write_launch_context(self, run_id: str, context: Mapping[str, object]) -> Path:
+        path = self._run_path(run_id) / "launch-context.json"
+        payload = json.dumps(dict(context), ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+        descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, path)
+        finally:
+            try:
+                os.unlink(temporary)
+            except FileNotFoundError:
+                pass
+        return path
+
+    def _read_json_record(self, run_id: str, name: str) -> dict[str, object] | None:
+        path = self._run_path(run_id) / name
+        if not path.is_file() or not path.read_text(encoding="utf-8").strip():
+            return None
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def read_process(self, run_id: str) -> dict[str, object] | None:
+        return self._read_json_record(run_id, "process.json")
+
+    def read_exit(self, run_id: str) -> dict[str, object] | None:
+        return self._read_json_record(run_id, "exit.json")
+
+    def mark_protocol_result(self, run_id: str, result: str) -> Path:
+        path = self._run_path(run_id) / "protocol.json"
+        path.write_text(
+            json.dumps({"run_id": run_id, "result": result}, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        return path
+
     def _rotate(self, path: Path, incoming_size: int) -> None:
         if not path.exists() or path.stat().st_size + incoming_size <= self.max_log_bytes:
             return

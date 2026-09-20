@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 try:
-    from .base import AdapterCapabilities, LaunchRequest
+    from .base import AdapterCapabilities, LaunchContext, LaunchRequest, build_role_prompt
 except ImportError:
     import importlib.util
 
@@ -21,6 +21,8 @@ except ImportError:
     _spec.loader.exec_module(_base)
     AdapterCapabilities = _base.AdapterCapabilities
     LaunchRequest = _base.LaunchRequest
+    LaunchContext = _base.LaunchContext
+    build_role_prompt = _base.build_role_prompt
 
 
 class OpenCodeAdapter:
@@ -38,8 +40,8 @@ class OpenCodeAdapter:
         result = subprocess.run(self._command("models"), capture_output=True, text=True, check=True)
         return tuple(line.strip() for line in result.stdout.splitlines() if line.strip().count("/") == 1)
 
-    def build_command(self, request: LaunchRequest) -> tuple[str, ...]:
-        prompt = f"Read docs/agent/tasks/{request.task_id}/STATE.md and perform the {request.role} stage."
+    def build_command(self, request: LaunchRequest, context: LaunchContext) -> tuple[str, ...]:
+        prompt = build_role_prompt(request, context)
         arguments = ["run", "--format", "json", "--model", request.model]
         if request.reasoning:
             arguments.extend(["--variant", request.reasoning])

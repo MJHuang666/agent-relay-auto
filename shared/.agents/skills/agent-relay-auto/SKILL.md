@@ -7,6 +7,18 @@ description: Use when initializing a repository for file-based Planner, Implemen
 
 Keep project context in repository files so a new agent session can continue without replaying chat history.
 
+## Automatic v1.7 Role Boundary
+
+In automatic mode, Planner is always foreground. The user talks to Planner for planning, decisions, replanning, and final delivery; Runner never launches a Planner process. The automatic path is:
+
+```text
+Planner foreground → Runner background Implementer → Runner background Reviewer → Planner foreground → DONE
+```
+
+`PLANNING` and `REPORTING` return `waiting_foreground_planner`. `WAITING_USER` and `BLOCKED` also wait for foreground action. Minimizing the Planner window does not stop a running Implementer or Reviewer. Background roles must finish with `implementation-done` or `verdict`; process exit alone is not a handoff. An exit 0 without a legal transition is `protocol_failure: no_handoff`, consumes the bounded retry policy, and then blocks.
+
+Run identity, launch context, heartbeats, stdout/stderr and exit records live under `.agent-relay-auto/runs/`. Default `heartbeat_stale_seconds` is 45. Codex `--ephemeral` controls session persistence only; it does not prove lifecycle completion or release a writer lease.
+
 ## Commands and Language
 
 These explicit commands are equivalent:

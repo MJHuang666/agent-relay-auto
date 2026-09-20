@@ -14,6 +14,8 @@
 
 Agent 不需要共享 Conversation Context（对话上下文），只需要 Relay（接力）项目状态。
 
+自动模式下，Planner 始终留在前台负责用户决策与最终交付，Runner 只在后台启动 Implementer 和 Reviewer：Planner 前台 → Implementer → Reviewer → Planner 前台总结 → `DONE`。最小化 Planner 窗口不会停止后台工作；到达 `PLANNING`、`REPORTING`、`WAITING_USER` 或 `BLOCKED` 时才等待前台处理。
+
 ## 它解决的不是“聊天”，而是项目认知会丢失
 
 Agent 可能停止，聊天窗口可能结束，模型可能更换，电脑可能迁移，开发环境也可能被重装。

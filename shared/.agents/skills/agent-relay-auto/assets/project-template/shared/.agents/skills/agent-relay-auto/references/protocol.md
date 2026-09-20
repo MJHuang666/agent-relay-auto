@@ -74,6 +74,8 @@ DONE means task acceptance only. It does not authorize merge, release, deploymen
 
 In automatic mode, the Runner is an orchestrator, not a reviewer. It may start the next participant only after a valid CAS-protected state transition. It must not interpret chat text or stdout containing “pass” as a verdict. A process interruption is resumable only through a native session or a checkpoint restart after checking the actual diff and live processes; an uncertain remote run is `BLOCKED`.
 
+Planner remains foreground and Runner returns `waiting_foreground_planner` for `PLANNING` and `REPORTING`. Implementer completes with `implementation-done`; Reviewer completes with `verdict`. Both commands validate revision, participant, run ID, evidence, and writer lease atomically. A background process that exits without changing its starting business state is `protocol_failure: no_handoff`, even when its exit code is zero. Default `heartbeat_stale_seconds` is 45; stale or mismatched identities require audited recovery rather than guessed completion.
+
 ## Repair and Management
 
 Registration, participant replacement, active-task switching, takeover, and state repair are management operations. Perform them only when explicitly requested or necessary to carry out an already explicit request, record the reason and evidence, and do not mix them with product edits.

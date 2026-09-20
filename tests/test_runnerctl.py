@@ -10,6 +10,48 @@ runnerctl = load_runtime_module("runnerctl", "../runnerctl.py")
 
 
 class RunnerCtlTests(unittest.TestCase):
+    def test_start_waits_through_transient_xpcproxy_state(self):
+        policy = """mode: automatic
+roles:
+  planner:
+    participant_id: planner-codex
+    agent: codex
+    model: gpt-test
+    reasoning_effort: high
+  implementer:
+    participant_id: implementer-codex
+    agent: codex
+    model: gpt-test
+    reasoning_effort: medium
+  reviewer:
+    participant_id: reviewer-codex
+    agent: codex
+    model: gpt-test
+    reasoning_effort: medium
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo = root / "repo"
+            (repo / "docs/agent").mkdir(parents=True)
+            (repo / "docs/agent/automation-policy.yaml").write_text(policy)
+            plist = root / "runner.plist"
+            plist.write_text("plist")
+            print_count = 0
+
+            def run(command, **kwargs):
+                nonlocal print_count
+                if "print" in command:
+                    print_count += 1
+                    if print_count == 1:
+                        return SimpleNamespace(returncode=113, stdout="", stderr="not loaded")
+                    if print_count == 2:
+                        return SimpleNamespace(returncode=0, stdout="state = xpcproxy\nactive count = 1\n", stderr="")
+                    return SimpleNamespace(returncode=0, stdout="state = running\nactive count = 1\n", stderr="")
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+            controller = runnerctl.RunnerController(root / "projects.json", plist, 501, run)
+            self.assertEqual(controller.start(repo)["status"], "started")
+            self.assertGreaterEqual(print_count, 3)
     def test_status_reports_foreground_wait_and_protocol_failure_log(self):
         policy = """mode: automatic
 roles:

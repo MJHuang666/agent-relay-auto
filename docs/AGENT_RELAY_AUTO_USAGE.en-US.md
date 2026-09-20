@@ -1,6 +1,8 @@
 # Agent Relay Auto Usage Guide
 
-This guide covers `agent-relay-auto` Skill v1.6.3: initialization, role handoff, Agent replacement, pause and recovery, state inspection, and task acceptance.
+This guide covers `agent-relay-auto` Skill v1.7.0: initialization, role handoff, Agent replacement, pause and recovery, state inspection, and task acceptance.
+
+Automatic mode is fixed to: foreground Planner → background Implementer → background Reviewer → foreground Planner summary. Runner returns `waiting_foreground_planner` for planning and reporting and never creates a Planner background process. Background roles hand off through `implementation-done` / `verdict`; `protocol_failure: no_handoff` is retried only within policy. Default `heartbeat_stale_seconds` is 45.
 
 ## Initialize a repository
 

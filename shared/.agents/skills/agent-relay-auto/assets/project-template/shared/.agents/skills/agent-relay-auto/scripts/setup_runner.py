@@ -26,6 +26,15 @@ class InstallPaths:
     launch_agents: Path
 
 
+@dataclass(frozen=True)
+class UpgradePreflight:
+    status: str
+    repo: str
+    task_id: str | None = None
+    run_id: str | None = None
+    role: str | None = None
+
+
 class RunnerInstaller:
     def __init__(self, source_skill: Path, version: str, paths: InstallPaths, platform: str | None = None):
         self.source_skill = Path(source_skill).resolve()
@@ -86,6 +95,61 @@ class RunnerInstaller:
 </dict></plist>
 '''
 
+    @staticmethod
+    def _parse_scalar_state(path: Path) -> dict[str, str | None]:
+        values: dict[str, str | None] = {}
+        if not path.is_file():
+            return values
+        for raw in path.read_text(encoding="utf-8").splitlines():
+            if raw.startswith(" ") or ":" not in raw:
+                continue
+            key, value = raw.split(":", 1)
+            value = value.strip()
+            values[key] = None if value in {"", "null", "~"} else value.strip("\"'")
+        return values
+
+    @staticmethod
+    def _pid_is_alive(pid: int) -> bool:
+        try:
+            os.kill(pid, 0)
+        except (ProcessLookupError, ValueError):
+            return False
+        except PermissionError:
+            return True
+        return True
+
+    def preflight(self, repo: Path) -> UpgradePreflight:
+        repo = Path(repo).resolve()
+        project = self._parse_scalar_state(repo / "docs/agent/PROJECT_STATUS.md")
+        task_id = project.get("active_task")
+        if not task_id:
+            return UpgradePreflight("safe_to_upgrade", str(repo))
+        state = self._parse_scalar_state(repo / "docs/agent/tasks" / task_id / "STATE.md")
+        run_id = state.get("run_id")
+        role = state.get("current_role")
+        if not run_id or state.get("run_status") not in {"starting", "running"}:
+            return UpgradePreflight("safe_to_upgrade", str(repo), task_id, role=role)
+        process_path = repo / ".agent-relay-auto/runs" / task_id / run_id / "process.json"
+        if process_path.is_file():
+            try:
+                process = json.loads(process_path.read_text(encoding="utf-8"))
+                if process.get("run_id") == run_id and self._pid_is_alive(int(process["worker_pid"])):
+                    return UpgradePreflight("wait_for_active_run", str(repo), task_id, run_id, role)
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+                pass
+        return UpgradePreflight("repair_required", str(repo), task_id, run_id, role)
+
+    def _registered_preflights(self) -> tuple[UpgradePreflight, ...]:
+        registry = self.paths.config_root / "projects.json"
+        if not registry.is_file():
+            return ()
+        payload = json.loads(registry.read_text(encoding="utf-8"))
+        return tuple(
+            self.preflight(Path(item["repo"]))
+            for item in payload
+            if item.get("enabled") is True and item.get("repo")
+        )
+
     def install(self, dry_run: bool = False) -> dict[str, object]:
         actions = [
             f"copy {self.source_skill} -> {self.version_path}",
@@ -98,6 +162,10 @@ class RunnerInstaller:
             raise InstallError("launchd installation is supported only on macOS")
         if not self.source_skill.is_dir():
             raise InstallError(f"skill source is missing: {self.source_skill}")
+        blocked = [item for item in self._registered_preflights() if item.status != "safe_to_upgrade"]
+        if blocked:
+            summary = ", ".join(f"{item.repo}: {item.status}" for item in blocked)
+            raise InstallError(f"Runner upgrade preflight refused installation: {summary}")
         self.version_path.parent.mkdir(parents=True, exist_ok=True)
         if self.version_path.exists():
             shutil.rmtree(self.version_path)

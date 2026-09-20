@@ -1,5 +1,7 @@
 # Agent Relay Auto 自动闭环设计规格
 
+> v1.7.0 纠偏：Planner 只在前台运行。本文中允许 Runner 在后台启动 Planner 重规划或汇报的旧语义，已被 `2026-09-20-agent-relay-auto-foreground-planner-reliability-design.md` 取代。Runner 返回 `waiting_foreground_planner`，后台只运行 Implementer 和 Reviewer。
+
 日期：2026-09-19
 
 状态：设计已批准，等待实现计划

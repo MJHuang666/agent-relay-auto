@@ -9,6 +9,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -54,6 +55,14 @@ class RunnerController:
             text=True,
             check=False,
         )
+
+    def _wait_for_startup(self, repo: Path, timeout_seconds: float = 5.0) -> dict[str, object]:
+        deadline = time.monotonic() + timeout_seconds
+        health = self.status(repo)
+        while health["status"] not in {"running", "failed", "blocked"} and time.monotonic() < deadline:
+            time.sleep(0.1)
+            health = self.status(repo)
+        return health
 
     def status(self, repo: Path) -> dict[str, object]:
         repo = Path(repo).resolve()
@@ -145,7 +154,7 @@ class RunnerController:
         started = self._run("kickstart", "-k", self.service)
         if started.returncode != 0:
             raise RunnerControlError(started.stderr.strip() or "launchctl kickstart failed")
-        health = self.status(repo)
+        health = self._wait_for_startup(repo)
         if health["status"] != "running":
             raise RunnerControlError(
                 "Runner failed after startup "

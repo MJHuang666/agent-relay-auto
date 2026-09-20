@@ -14,6 +14,8 @@
 
 Agents do not need to share a Conversation Context. They only need to relay the project state stored in the repository.
 
+In automatic mode, Planner stays in the foreground for user decisions and final delivery. Runner launches only background Implementer and Reviewer processes: Planner foreground → Implementer → Reviewer → Planner foreground → `DONE`. Minimizing the Planner window does not stop background work; `PLANNING`, `REPORTING`, `WAITING_USER`, and `BLOCKED` wait for foreground attention.
+
 ## The problem it solves
 
 An Agent can run out of context. A chat can disappear. A model can change. A machine can be replaced. An environment can be rebuilt.

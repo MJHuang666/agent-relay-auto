@@ -74,6 +74,29 @@ cmp -s \
   shared/.agents/skills/agent-relay-auto/assets/project-template/shared/.agents/skills/agent-relay-auto/references/runner.md \
   || fail "runner reference bootstrap copy differs from source"
 
+for contract_file in \
+  shared/.agents/skills/agent-relay-auto/SKILL.md \
+  shared/.agents/skills/agent-relay-auto/assets/project-template/shared/.agents/skills/agent-relay-auto/SKILL.md \
+  shared/.agents/skills/agent-relay-auto/references/runner.md \
+  shared/docs/agent/workflow.md \
+  docs/AGENT_RELAY_AUTO_USAGE.md \
+  docs/AGENT_RELAY_AUTO_USAGE.en-US.md; do
+  for contract in 'waiting_foreground_planner' 'implementation-done' 'protocol_failure: no_handoff' 'heartbeat_stale_seconds'; do
+    grep -Fq "$contract" "$contract_file" || fail "missing v1.7 contract '$contract' in $contract_file"
+  done
+done
+
+for policy_file in \
+  shared/.agents/skills/agent-relay-auto/assets/project-template/locales/zh-CN/docs/agent/automation-policy.yaml \
+  shared/.agents/skills/agent-relay-auto/assets/project-template/locales/en-US/docs/agent/automation-policy.yaml; do
+  grep -Fq 'execution_mode: foreground' "$policy_file" || fail "missing foreground Planner in $policy_file"
+  grep -Fq 'heartbeat_stale_seconds: 45' "$policy_file" || fail "missing runtime defaults in $policy_file"
+done
+
+if rg -n 'Runner automatically starts Planner|Runner 自动启动 Planner' README.md README.zh-CN.md docs/AGENT_RELAY_AUTO_USAGE* shared/docs shared/.agents/skills/agent-relay-auto/references; then
+  fail "user-facing documentation still claims Runner starts Planner"
+fi
+
 cmp -s \
   shared/docs/agent/knowledge-index.md \
   shared/.agents/skills/agent-relay-auto/assets/project-template/shared/docs/agent/knowledge-index.md \

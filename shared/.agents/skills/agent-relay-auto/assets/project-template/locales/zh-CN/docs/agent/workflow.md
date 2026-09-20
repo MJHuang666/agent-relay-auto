@@ -9,7 +9,7 @@
 5. 执行：登记本次 writer_session，按角色权限工作；Implementer 改代码前必须完成子代理选择门；暂停时写检查点。
 6. 交接：完成正式交付物，追加 progress，更新 STATE，最后刷新总览缓存。
 
-交接行为取决于 `automation-policy.yaml`：`mode: automatic` 时由 Runner 自动启动下一角色，当前角色只报告“等待下一角色结果”，不得要求用户打开下一窗口或输入“继续”；`mode: manual`、Runner 明确停止或任务进入需要人工处理的 `BLOCKED` 时，才由用户在下一工具或窗口输入“继续”。
+交接行为取决于 `automation-policy.yaml`：`mode: automatic` 时 Planner 固定前台，Runner 对规划/汇报返回 `waiting_foreground_planner`，后台只启动 Implementer 和 Reviewer。它们通过 `implementation-done` 和 `verdict` 交接；退出 0 但未转换状态属于 `protocol_failure: no_handoff`。默认 `heartbeat_stale_seconds: 45`。
 
 ## Agent Replacement
 
