@@ -10,7 +10,7 @@ This release adds project-local, exact-conversation Planner wake-up for automati
 
 ## Automated evidence
 
-- `python3 -m unittest discover -s tests -v`: **148 tests passed**.
+- `python3 -m unittest discover -s tests -v`: **154 tests passed** after independent whole-branch review fixes.
 - `python3 -m unittest tests.test_agent_relay_contract tests.shared_dot_agents_skill_loader -v`: **9 contract tests passed**.
 - `git diff --check`: passed before the documentation commit and is rerun at release completion.
 - Hybrid and reporting E2E coverage proves:
@@ -19,17 +19,23 @@ This release adds project-local, exact-conversation Planner wake-up for automati
   - two different projects can report independently;
   - failed UI presentation does not roll back a valid `DONE`;
   - idle and `PLANNING` polling submit zero model turns.
+  - a remote turn cannot report completion without guarded `report-done` and `STATE.md == DONE`;
+  - model retries are bounded independently from persisted UI-presentation retries;
+  - report completion recovers a simulated crash between task-state and project-index writes;
+  - fallback receipts do not persist full conversation IDs.
 
 ## Planner wake capability status
 
-| Tool | Release status | Evidence |
-|---|---|---|
-| Codex | `verified` | Exact thread resume, turn receipt, deduplicated reporting, and E2E completion tests. |
-| OpenCode | `verified` | Exact session command and no-fork contract tests. |
-| Claude Code | `verified` | Exact `--resume` session contract and rejection of mismatched sessions. |
-| DeepSeek Harness | `static_only` | ACP bridge and exact-session state machine tests pass; no `dsh` executable, `DSH_TEST_SESSION_ID`, or authenticated API credential was available for a real-session probe. |
+The tests below use controlled transports or fake Planner implementations. They verify contracts and state-machine behavior, not a real authenticated CLI/UI session. Therefore no tool is labelled end-to-end `verified` by this release report.
 
-No capability is upgraded from `static_only` without real authenticated session evidence.
+| Tool | Exact-session contract | Original UI reopen | End-to-end status | Evidence |
+|---|---|---|---|---|
+| Codex | `verified` | `experimental` | `experimental` | Controlled App Server transport verifies exact thread IDs, receipts, and deduplication; no real Desktop UI wake was run. |
+| OpenCode | `verified` | `verified` | `experimental` | Command contract verifies exact `--session` and no fork; the reporting E2E uses a fake Planner. |
+| Claude Code | `verified` | `verified` | `experimental` | Command contract verifies exact `--resume` and rejects mismatched sessions; the reporting E2E uses a fake Planner. |
+| DeepSeek Harness | `static_only` | `experimental` | `static_only` | ACP bridge/state-machine tests pass; no `dsh` executable, `DSH_TEST_SESSION_ID`, or authenticated credential was available. |
+
+Only a tool whose four capability fields are all `verified` may be displayed as fully verified. No capability is upgraded on the strength of fake or static tests alone.
 
 ## Local installation and service isolation
 
@@ -48,7 +54,7 @@ The already-running user launchd service and its two registered projects are del
 - Checksum: `dist/agent-relay-auto-skill-pack-v1.8.0.zip.sha256`
 - ZIP root: `agent-relay-auto-skill-pack/`
 - Entries: **303**
-- SHA-256: `763867d706d754985469624d19f81d0e54f6b80faef7a0b915c959a3a0c1087f`
+- SHA-256: `1dc382d99b52dcc95131c09a7871cb721ab7f50d2924ec5ecadb4177779129d5`
 - Excludes `.git`, `.agent-relay-auto`, credentials, logs, `.DS_Store`, AppleDouble files, Python caches, and example active tasks.
 
 Final archive hash and installation manifest counts are verified during the release build and checksum checks.

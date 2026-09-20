@@ -23,15 +23,16 @@ class RecordingRunner:
 
 
 class FakeCodexTransport:
-    def __init__(self, thread_id, turn_id):
+    def __init__(self, thread_id, turn_id, turns=None):
         self.thread_id = thread_id
         self.turn_id = turn_id
+        self.turns = turns or []
         self.methods = []
 
     def request(self, method, params):
         self.methods.append(method)
         if method == "thread/read":
-            return {"thread": {"id": self.thread_id}}
+            return {"thread": {"id": self.thread_id, "turns": self.turns}}
         if method == "thread/resume":
             return {"thread": {"id": self.thread_id}}
         return {"turn": {"id": self.turn_id}}
@@ -81,6 +82,15 @@ class PlannerWakeCliBridgeTests(unittest.TestCase):
         self.assertEqual(receipt.remote_id, "turn_9")
         self.assertEqual(transport.methods, ["thread/read", "thread/resume", "turn/start"])
         self.assertEqual(adapter.present(self.channel("codex", "thr_1")).status, "experimental")
+
+    def test_codex_reconciles_ambiguous_submission_by_wake_key_in_exact_thread(self):
+        transport = FakeCodexTransport(
+            "thr_1", "unused", turns=[{"id": "turn_existing", "input": "wake-7"}]
+        )
+        adapter = codex.CodexPlannerWakeAdapter(transport_factory=lambda: transport)
+        receipt = adapter.reconcile(self.channel("codex", "thr_1"), "wake-7")
+        self.assertEqual(receipt.remote_id, "turn_existing")
+        self.assertEqual(receipt.conversation_id, "thr_1")
 
 
 if __name__ == "__main__":

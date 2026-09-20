@@ -6,6 +6,8 @@
 
 初始化会登记当前 Planner 对话到本地忽略文件 `.agent-relay-auto/planner-channel.json`，仅展示遮罩 ID。支持 `codex`、`opencode`、`claude-code`、`deepseek-harness`；能力标签为 `verified` / `experimental` / `static_only` / `unavailable`。Reviewer PASS 后，只有原 Planner 可以使用 `wake_key` 和 `review_delivery_id` 执行 `report-done`，Runner 不直接写 `DONE`。
 
+远程回合结束不等于任务完成：Runner 必须重新读到 `STATE.md == DONE`。模型重试与界面展示重试分离；`DONE` 后只可重试打开原对话，不得重复提交模型回合。报告完成使用本地事务记录，崩溃后可修复任务状态与项目索引之间的分裂。
+
 ## 1. 初始化仓库
 
 ```text

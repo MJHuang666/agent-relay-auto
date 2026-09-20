@@ -154,6 +154,7 @@ class ProjectSupervisor:
         return self._finalize_durable(task_id, run_id, 1, "interrupted")
 
     def tick(self) -> SupervisorDecision:
+        self.store.recover_pending_transactions()
         project_path = self.repo / "docs/agent/PROJECT_STATUS.md"
         if not project_path.is_file():
             return SupervisorDecision("uninitialized")

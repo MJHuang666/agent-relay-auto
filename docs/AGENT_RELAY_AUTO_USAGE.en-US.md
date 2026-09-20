@@ -6,6 +6,8 @@ Automatic mode is fixed to: foreground Planner → background Implementer → ba
 
 Initialization registers the current Planner conversation in the ignored local file `.agent-relay-auto/planner-channel.json` and displays only a masked ID. Wake tools are `codex`, `opencode`, `claude-code`, and `deepseek-harness`, with truthful `verified` / `experimental` / `static_only` / `unavailable` labels. After Reviewer PASS, only the original Planner may execute guarded `report-done` with the persisted `wake_key` and matching `review_delivery_id`; Runner never writes `DONE` directly.
 
+A remote turn ending is not task completion: Runner must re-read `STATE.md == DONE`. Model retries and UI presentation retries are independent; after `DONE`, Runner may retry opening the original conversation but never submits another model turn. A durable local report transaction repairs a crash-induced split between task state and the project index.
+
 ## Initialize a repository
 
 ```text

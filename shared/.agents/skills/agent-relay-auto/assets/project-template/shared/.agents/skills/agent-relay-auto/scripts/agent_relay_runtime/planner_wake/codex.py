@@ -86,5 +86,23 @@ class CodexPlannerWakeAdapter:
     def observe(self, receipt):
         return _types.ObservationResult("submitted")
 
+    def reconcile(self, channel, wake_key):
+        transport = self.transport_factory()
+        try:
+            result = transport.request("thread/read", {"threadId": channel.conversation_id, "includeTurns": True})
+            thread = result.get("thread", {})
+            if thread.get("id") != channel.conversation_id:
+                raise RuntimeError("Codex reconciliation returned a different thread")
+            for turn in reversed(thread.get("turns", [])):
+                if wake_key in json.dumps(turn, ensure_ascii=False, sort_keys=True):
+                    turn_id = turn.get("id")
+                    if isinstance(turn_id, str) and turn_id:
+                        return _types.SubmissionReceipt(
+                            wake_key, "codex", channel.conversation_id, turn_id, "submitted"
+                        )
+            return None
+        finally:
+            transport.close()
+
     def present(self, channel):
         return _types.PresentationResult("experimental", "Exact Codex Desktop navigation is not yet verified")

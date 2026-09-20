@@ -23,6 +23,8 @@ Reviewer `PASS` requires a non-empty evidence file. Planner reporting requires t
 
 `report-done` requires the current revision, Planner participant, persisted `wake_key`, matching Reviewer reference, and matching `review_delivery_id`. Only Planner can advance `REPORTING` to `DONE`; Runner never guesses or writes that transition. Presentation retries are independent from the single model submission, so a UI reopen failure cannot roll back a valid `DONE`.
 
+A remote turn is not business completion by itself: Runner reports completion only after re-reading `STATE.md == DONE`. A completed turn without guarded `report-done` consumes the bounded model retry policy and then blocks. UI presentation has separate persisted attempt and next-retry records and never resubmits the model after `DONE`. A durable local report transaction repairs `STATE.md == DONE` / `PROJECT_STATUS.md` split-brain after a crash. Ambiguous submissions are reconciled against the exact conversation when the tool exposes history (currently Codex); otherwise Runner fails closed instead of blindly resubmitting.
+
 ## Configuration Gate
 
 The Runner is the consumer of role configuration, not the place where users repair it. Before installation or startup, the Skill must complete the conversational configuration and write `docs/agent/automation-policy.yaml` with an explicit `participant_id`, Agent, model, and provider-specific reasoning value for Planner, Implementer, and Reviewer.

@@ -1,4 +1,5 @@
 import tempfile
+import json
 import unittest
 from pathlib import Path
 
@@ -24,12 +25,32 @@ class FakeAdapter:
     def observe(self, receipt):
         return base.ObservationResult("active")
 
-    def reconcile(self, wake_key):
+    def reconcile(self, channel, wake_key):
         if self.remote_has_wake_key:
             return base.SubmissionReceipt(wake_key, "codex", "thr-1", "turn-existing", "submitted")
         return None
 
     def present(self, channel):
+        return base.PresentationResult("presented")
+
+
+class CompletedWithoutReportAdapter(FakeAdapter):
+    def observe(self, receipt):
+        return base.ObservationResult("completed")
+
+
+class PresentationRetryAdapter(FakeAdapter):
+    def __init__(self):
+        super().__init__()
+        self.present_count = 0
+
+    def observe(self, receipt):
+        return base.ObservationResult("completed")
+
+    def present(self, channel):
+        self.present_count += 1
+        if self.present_count == 1:
+            raise RuntimeError("application closed")
         return base.PresentationResult("presented")
 
 
@@ -86,6 +107,76 @@ class ReportingCoordinatorTests(unittest.TestCase):
         decision = reporting.ReportingCoordinator(repo, lambda tool: adapter, config.ReportingPolicy()).tick("TASK-001")
         self.assertEqual(decision.action, "blocked")
         self.assertEqual(adapter.submit_count, 0)
+
+    def test_completed_remote_turn_without_report_done_is_not_business_completion(self):
+        temporary, repo = self.make_repo()
+        self.addCleanup(temporary.cleanup)
+        adapter = CompletedWithoutReportAdapter()
+        coordinator = reporting.ReportingCoordinator(
+            repo, lambda tool: adapter,
+            config.ReportingPolicy(model_retry_limit=0),
+        )
+        self.assertEqual(coordinator.tick("TASK-001").action, "report_submitted")
+        decision = coordinator.tick("TASK-001")
+        self.assertEqual(decision.action, "blocked")
+        self.assertIn("report-done", decision.detail)
+        self.assertIn("status: REPORTING", (repo / "docs/agent/tasks/TASK-001/STATE.md").read_text())
+
+    def test_completed_without_report_done_uses_bounded_model_retry(self):
+        temporary, repo = self.make_repo()
+        self.addCleanup(temporary.cleanup)
+        adapter = CompletedWithoutReportAdapter()
+        coordinator = reporting.ReportingCoordinator(
+            repo, lambda tool: adapter,
+            config.ReportingPolicy(model_retry_limit=1),
+        )
+        self.assertEqual(coordinator.tick("TASK-001").action, "report_submitted")
+        self.assertEqual(coordinator.tick("TASK-001").action, "report_wake_pending")
+        self.assertEqual(coordinator.tick("TASK-001").action, "report_submitted")
+        self.assertEqual(coordinator.tick("TASK-001").action, "blocked")
+        self.assertEqual(adapter.submit_count, 2)
+
+    def test_done_retries_presentation_without_resubmitting_model(self):
+        temporary, repo = self.make_repo()
+        self.addCleanup(temporary.cleanup)
+        adapter = PresentationRetryAdapter()
+        coordinator = reporting.ReportingCoordinator(
+            repo, lambda tool: adapter,
+            config.ReportingPolicy(presentation_retry_limit=2, presentation_retry_interval_seconds=0.001),
+        )
+        first = coordinator.tick("TASK-001")
+        state_path = repo / "docs/agent/tasks/TASK-001/STATE.md"
+        state_path.write_text(state_path.read_text().replace("status: REPORTING", "status: DONE"), encoding="utf-8")
+        failed = coordinator.tick("TASK-001")
+        self.assertEqual(failed.action, "report_presentation_retry")
+        import time
+        time.sleep(0.01)
+        completed = coordinator.tick("TASK-001")
+        self.assertEqual(completed.action, "report_completed")
+        self.assertEqual(adapter.submit_count, 1)
+        self.assertEqual(adapter.present_count, 2)
+
+    def test_journal_never_persists_full_conversation_or_session_fallback_receipt(self):
+        temporary, repo = self.make_repo()
+        self.addCleanup(temporary.cleanup)
+
+        class SessionReceiptAdapter(FakeAdapter):
+            def submit_report(self, channel, request):
+                self.submit_count += 1
+                return base.SubmissionReceipt(
+                    request.wake_key, channel.tool, channel.conversation_id,
+                    channel.conversation_id, "submitted",
+                )
+
+        adapter = SessionReceiptAdapter()
+        reporting.ReportingCoordinator(repo, lambda tool: adapter, config.ReportingPolicy()).tick("TASK-001")
+        events = [
+            json.loads(line)
+            for line in (repo / ".agent-relay-auto/wake-events.jsonl").read_text(encoding="utf-8").splitlines()
+        ]
+        submitted = next(event for event in events if event["status"] == "submitted")
+        self.assertNotEqual(submitted["receipt_id"], "thr-1")
+        self.assertTrue(submitted["receipt_id"].startswith("sha256:"))
 
 
 if __name__ == "__main__":

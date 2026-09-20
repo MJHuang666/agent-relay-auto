@@ -190,6 +190,49 @@ class StateStore:
             updated = set_yaml_value(updated, key_path, value)
         atomic_write_text(path, updated)
 
+    def _report_transaction_path(self, task_id: str) -> Path:
+        return self.repo / ".agent-relay-auto/transactions" / f"report-{task_id}.json"
+
+    def _complete_project_index(self, task_id: str) -> None:
+        project_path = self._project_path()
+        project_text = project_path.read_text(encoding="utf-8")
+        project = parse_fenced_yaml(project_text)
+        tasks = project.get("tasks") if isinstance(project.get("tasks"), Mapping) else {}
+        active = [item for item in tasks.get("active", []) if item != task_id]
+        completed = list(tasks.get("completed", []))
+        if task_id not in completed:
+            completed.append(task_id)
+        self._write_state(
+            project_path,
+            project_text,
+            {
+                ("active_task",): None if project.get("active_task") == task_id else project.get("active_task"),
+                ("tasks", "active"): active,
+                ("tasks", "completed"): completed,
+            },
+        )
+
+    def recover_pending_transactions(self) -> tuple[str, ...]:
+        transaction_root = self.repo / ".agent-relay-auto/transactions"
+        if not transaction_root.is_dir():
+            return ()
+        recovered = []
+        with _state_lock(self.repo, "recover-report-transactions"):
+            for transaction_path in sorted(transaction_root.glob("report-*.json")):
+                try:
+                    transaction = json.loads(transaction_path.read_text(encoding="utf-8"))
+                    task_id = transaction["task_id"]
+                except (OSError, KeyError, TypeError, json.JSONDecodeError) as error:
+                    raise StateStoreError(f"invalid report transaction {transaction_path}: {error}") from error
+                if not isinstance(task_id, str) or not task_id:
+                    raise StateStoreError(f"invalid task_id in report transaction {transaction_path}")
+                _, _, task_state = self._read_task(task_id)
+                if task_state.get("status") == "DONE":
+                    self._complete_project_index(task_id)
+                    recovered.append(task_id)
+                transaction_path.unlink()
+        return tuple(recovered)
+
     def transition(
         self,
         task_id: str,
@@ -389,16 +432,16 @@ class StateStore:
                     f"review_ref mismatch: expected {state.get('review_ref')}, actual {review_ref}"
                 )
 
-            project_path = self._project_path()
-            project_text = project_path.read_text(encoding="utf-8")
-            project = parse_fenced_yaml(project_text)
-            tasks = project.get("tasks") if isinstance(project.get("tasks"), Mapping) else {}
-            active = [item for item in tasks.get("active", []) if item != task_id]
-            completed = list(tasks.get("completed", []))
-            if task_id not in completed:
-                completed.append(task_id)
-            completed_reporting = dict(reporting)
-            completed_reporting["phase"] = "completed"
+            transaction_path = self._report_transaction_path(task_id)
+            atomic_write_text(
+                transaction_path,
+                json.dumps({
+                    "operation": "report_completed",
+                    "task_id": task_id,
+                    "expected_revision": expected_revision,
+                    "created_at": now_iso(),
+                }, sort_keys=True) + "\n",
+            )
             self._write_state(
                 path,
                 text,
@@ -408,7 +451,7 @@ class StateStore:
                     ("previous_participant",): participant_id,
                     ("previous_progress",): report_ref,
                     ("report_ref",): report_ref,
-                    ("reporting",): completed_reporting,
+                    ("reporting", "phase"): "completed",
                     ("current_role",): "planner",
                     ("current_participant",): participant_id,
                     ("run_id",): None,
@@ -421,15 +464,8 @@ class StateStore:
                 },
             )
 
-            self._write_state(
-                project_path,
-                project_text,
-                {
-                    ("active_task",): None if project.get("active_task") == task_id else project.get("active_task"),
-                    ("tasks", "active"): active,
-                    ("tasks", "completed"): completed,
-                },
-            )
+            self._complete_project_index(task_id)
+            transaction_path.unlink()
             return TransitionResult(task_id, "REPORTING", "DONE", expected_revision, expected_revision + 1)
 
     def claim(self, key: ClaimKey, run_id: str) -> TransitionResult:

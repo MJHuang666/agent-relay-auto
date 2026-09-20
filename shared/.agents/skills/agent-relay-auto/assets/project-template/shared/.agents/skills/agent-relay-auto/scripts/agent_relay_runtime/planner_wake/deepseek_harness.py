@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import selectors
 import subprocess
@@ -143,7 +144,9 @@ class DeepSeekHarnessPlannerWakeAdapter:
             raise RuntimeError(
                 f"DeepSeek Harness ACP exited {process.returncode}: {' | '.join(stderr_tail[-40:])}"
             )
-        remote_id = f"acp:{channel.conversation_id}:{request.wake_key}"
+        remote_id = "acp:" + hashlib.sha256(
+            f"{channel.conversation_id}:{request.wake_key}".encode("utf-8")
+        ).hexdigest()[:20]
         return _types.SubmissionReceipt(
             request.wake_key,
             "deepseek-harness",
@@ -155,6 +158,9 @@ class DeepSeekHarnessPlannerWakeAdapter:
 
     def observe(self, receipt):
         return _types.ObservationResult("completed")
+
+    def reconcile(self, channel, wake_key):
+        return None
 
     def present(self, channel):
         command = _command_prefix(self.executable) + (

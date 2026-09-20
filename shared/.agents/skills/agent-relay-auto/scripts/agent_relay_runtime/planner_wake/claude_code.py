@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import subprocess
 import sys
@@ -44,12 +45,18 @@ class ClaudeCodePlannerWakeAdapter:
         session_id = payload.get("session_id")
         if session_id != channel.conversation_id:
             raise RuntimeError(f"Claude Code returned mismatched session {session_id!r}")
+        remote_id = payload.get("message_id")
+        if not remote_id:
+            remote_id = "session:" + hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:16]
         return _types.SubmissionReceipt(
-            request.wake_key, "claude-code", session_id, str(payload.get("message_id") or session_id), "submitted", command
+            request.wake_key, "claude-code", session_id, str(remote_id), "submitted", command
         )
 
     def observe(self, receipt):
         return _types.ObservationResult("completed")
+
+    def reconcile(self, channel, wake_key):
+        return None
 
     def present(self, channel):
         subprocess.Popen((self.executable, "--resume", channel.conversation_id), cwd=channel.project_path)

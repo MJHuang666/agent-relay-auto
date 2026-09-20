@@ -23,6 +23,9 @@ class FakePlannerWakeAdapter:
     def observe(self, receipt):
         return ObservationResult("completed")
 
+    def reconcile(self, channel, wake_key):
+        return None
+
     def present(self, channel):
         self.present_count += 1
         return PresentationResult("presented")

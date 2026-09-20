@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import hashlib
 import json
 import subprocess
 import sys
@@ -44,11 +45,17 @@ class OpenCodePlannerWakeAdapter:
         session_id = payload.get("session_id") or payload.get("sessionID")
         if session_id != channel.conversation_id:
             raise RuntimeError(f"OpenCode returned mismatched session {session_id!r}")
-        remote_id = str(payload.get("message_id") or payload.get("messageID") or session_id)
+        remote_id = payload.get("message_id") or payload.get("messageID")
+        if not remote_id:
+            remote_id = "session:" + hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:16]
+        remote_id = str(remote_id)
         return _types.SubmissionReceipt(request.wake_key, "opencode", session_id, remote_id, "submitted", command)
 
     def observe(self, receipt):
         return _types.ObservationResult("completed")
+
+    def reconcile(self, channel, wake_key):
+        return None
 
     def present(self, channel):
         command = (self.executable, channel.project_path, "--session", channel.conversation_id)

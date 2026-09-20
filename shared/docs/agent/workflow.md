@@ -13,6 +13,8 @@
 
 Planner 原对话绑定保存在本地忽略文件 `.agent-relay-auto/planner-channel.json`。唤醒工具为 `codex`、`opencode`、`claude-code`、`deepseek-harness`，能力状态只使用 `verified`、`experimental`、`static_only`、`unavailable`。Runner 不直接写 `DONE`；只有原 Planner 在核对 `wake_key`、Reviewer 证据和 `review_delivery_id` 后才能执行 `report-done`。
 
+Runner 只有重新读到 `STATE.md == DONE` 才报告业务完成；远程回合结束但没有有效 `report-done` 会消耗有界模型重试，然后阻塞。界面重开重试与模型重试分离，`DONE` 后不再调用模型。本地持久事务记录用于在崩溃后修复任务 `DONE` 但项目索引尚未更新的分裂状态。
+
 后台角色必须分别通过 `implementation-done`、`verdict` 完成交接。仅退出进程不算完成；退出码为 0 但没有合法状态转换时记为 `protocol_failure: no_handoff`，按有限重试策略处理。运行证据保存在 `.agent-relay-auto/runs/`，默认 `heartbeat_stale_seconds: 45`。
 
 ## Agent Replacement

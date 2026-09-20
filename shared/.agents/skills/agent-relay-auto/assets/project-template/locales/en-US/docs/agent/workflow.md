@@ -2,6 +2,8 @@
 
 In automatic mode Planner is `execution_mode: foreground`. `PLANNING` waits for the user-facing Planner, while `REPORTING` automatically resumes the exact conversation registered in `.agent-relay-auto/planner-channel.json`; normal completion does not ask the user to type `continue`. Runner polls each project every 45 seconds by default. Wake tools are `codex`, `opencode`, `claude-code`, and `deepseek-harness`, with `verified`, `experimental`, `static_only`, or `unavailable` capability labels. Runner never writes `DONE`; Planner must validate `wake_key` and `review_delivery_id` before guarded `report-done`.
 
+Runner reports business completion only after re-reading `STATE.md == DONE`; a remote turn ending without guarded `report-done` consumes the bounded model retry policy and then blocks. UI presentation retries are separate from model retries and never submit another model turn after `DONE`. A durable local report transaction repairs a crash-induced split between task `DONE` state and the project index.
+
 ## Daily Path
 
 1. Read `PROJECT_STATUS.md.language`; use it for communication and new documents.

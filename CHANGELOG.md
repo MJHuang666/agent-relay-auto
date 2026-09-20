@@ -10,6 +10,9 @@ All notable changes to Agent Relay Auto are documented here. Project Role Workfl
 - Kept idle polling local and model-free at a 45-second default interval, with per-project concurrency and duplicate-submission protection.
 - Guarded `REPORTING → DONE` behind Planner identity, Reviewer evidence, delivery ID, and wake-key validation; Runner still cannot write `DONE` directly.
 - Marked DeepSeek Harness support truthfully as static-only unless a real authenticated session probe succeeds.
+- Made remote-turn completion insufficient without `STATE.md == DONE`, and added bounded model retries plus independent persisted UI-presentation retries.
+- Added a durable report-completion transaction with crash recovery for task/project-index split-brain.
+- Prevented full conversation IDs from leaking through fallback receipt identifiers and added Codex exact-thread reconciliation for ambiguous submissions.
 
 ## [1.7.0] - 2026-09-20
 

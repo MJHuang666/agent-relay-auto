@@ -189,7 +189,7 @@ class RelayStateCliTests(unittest.TestCase):
         completed_state = (self.repo / "docs/agent/tasks/TASK-001/STATE.md").read_text()
         completed_project = (self.repo / "docs/agent/PROJECT_STATUS.md").read_text()
         self.assertIn("status: DONE", completed_state)
-        self.assertIn('reporting: {"phase":"completed","wake_key":"wake-1"}', completed_state)
+        self.assertIn("reporting:\n  phase: completed\n  wake_key: wake-1", completed_state)
         self.assertIn("active_task: null", completed_project)
         self.assertIn('active: []', completed_project)
         self.assertIn('completed: ["TASK-001"]', completed_project)
