@@ -137,12 +137,17 @@ class ProjectSupervisor:
             )
         process = self.run_store.read_process(run_id)
         if process is not None and process.get("run_id") == run_id:
-            try:
-                os.kill(int(process["worker_pid"]), 0)
-                return SupervisorDecision("already_running", task_id, run_id)
-            except (ProcessLookupError, ValueError, TypeError):
-                pass
-            except PermissionError:
+            live_pids = []
+            for field in ("worker_pid", "agent_pid"):
+                try:
+                    pid = int(process[field])
+                    os.kill(pid, 0)
+                    live_pids.append(pid)
+                except (KeyError, ProcessLookupError, ValueError, TypeError):
+                    continue
+                except PermissionError:
+                    live_pids.append(pid)
+            if live_pids:
                 return SupervisorDecision("already_running", task_id, run_id)
         return self._finalize_durable(task_id, run_id, 1, "interrupted")
 

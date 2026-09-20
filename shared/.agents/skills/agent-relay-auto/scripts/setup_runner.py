@@ -133,7 +133,10 @@ class RunnerInstaller:
         if process_path.is_file():
             try:
                 process = json.loads(process_path.read_text(encoding="utf-8"))
-                if process.get("run_id") == run_id and self._pid_is_alive(int(process["worker_pid"])):
+                pids = [process.get("worker_pid"), process.get("agent_pid")]
+                if process.get("run_id") == run_id and any(
+                    pid is not None and self._pid_is_alive(int(pid)) for pid in pids
+                ):
                     return UpgradePreflight("wait_for_active_run", str(repo), task_id, run_id, role)
             except (KeyError, TypeError, ValueError, json.JSONDecodeError):
                 pass

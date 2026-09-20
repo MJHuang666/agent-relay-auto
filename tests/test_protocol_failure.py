@@ -1,3 +1,5 @@
+import json
+import os
 import sys
 import tempfile
 import time
@@ -12,6 +14,7 @@ config = load_runtime_module("config")
 markdown = load_runtime_module("markdown_state")
 state_store = load_runtime_module("state_store")
 supervisor_module = load_runtime_module("supervisor")
+run_store_module = load_runtime_module("run_store")
 
 
 PROJECT = """# Project Status
@@ -64,6 +67,36 @@ class ExitOnlyAdapter:
 
 
 class ProtocolFailureTests(unittest.TestCase):
+    def test_restart_preserves_lease_when_agent_lives_after_worker_exit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.make_repo(directory)
+            state_path = repo / "docs/agent/tasks/TASK-001/STATE.md"
+            text = state_path.read_text(encoding="utf-8")
+            for key, value in (
+                ("run_id", "run-agent-live"),
+                ("run_status", "running"),
+                ("writer_session", "run-agent-live"),
+            ):
+                text = markdown.set_yaml_value(text, (key,), value)
+            markdown.atomic_write_text(state_path, text)
+            store = run_store_module.RunStore(repo)
+            run_dir = store.create({
+                "task_id": "TASK-001", "run_id": "run-agent-live", "role": "implementer",
+                "participant_id": "impl-a", "start_status": "IMPLEMENTING",
+            })
+            (run_dir / "process.json").write_text(json.dumps({
+                "run_id": "run-agent-live", "worker_pid": 99999999,
+                "agent_pid": os.getpid(), "process_group_id": os.getpid(),
+            }))
+            supervisor = supervisor_module.ProjectSupervisor(repo, ExitOnlyAdapter(), run_store=store)
+
+            decision = supervisor.tick()
+
+            self.assertEqual(decision.action, "already_running")
+            state = self.read_state(repo)
+            self.assertEqual(state["run_id"], "run-agent-live")
+            self.assertEqual(state["writer_session"], "run-agent-live")
+
     def make_repo(self, directory):
         repo = Path(directory)
         (repo / ".git").mkdir()

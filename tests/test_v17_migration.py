@@ -50,6 +50,19 @@ class V17MigrationTests(unittest.TestCase):
             repo = self.write_state(root, "run-stale")
             self.assertEqual(service.preflight(repo).status, "repair_required")
 
+    def test_live_agent_blocks_upgrade_when_worker_pid_is_gone(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            service = self.make_installer(root)
+            repo = self.write_state(root, "run-agent-live")
+            run_dir = repo / ".agent-relay-auto/runs/TASK-001/run-agent-live"
+            run_dir.mkdir(parents=True)
+            (run_dir / "process.json").write_text(json.dumps({
+                "run_id": "run-agent-live", "worker_pid": 99999999,
+                "agent_pid": os.getpid(), "process_group_id": os.getpid(),
+            }))
+            self.assertEqual(service.preflight(repo).status, "wait_for_active_run")
+
     def test_idle_project_is_safe_to_upgrade(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

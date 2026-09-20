@@ -10,7 +10,7 @@ Date: 2026-09-20
 - Restart E2E: a recreated Runner consumed the durable Worker exit and did not duplicate the claim.
 - Safety: no E2E run used role `planner`; no merge, push, release, or deploy artifact was created.
 - Package: `dist/agent-relay-auto-skill-pack-v1.7.0.zip` passed `unzip -t` and checksum verification.
-- Package SHA-256: `bd08cf9ce160c0c1b875e12bdf733ebedd9c73df07d68ba01d6a2a9aea4c9273`.
+- Package SHA-256: `4e477070177e8fcbc4a7b999115f2d27c2c271ca3b98c4bc3d892f3e12d921f1`.
 
 ## Installed State
 
