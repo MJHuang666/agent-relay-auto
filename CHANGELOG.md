@@ -2,6 +2,15 @@
 
 All notable changes to Agent Relay Auto are documented here. Project Role Workflow and Agent Relay are legacy names retained only for migration history.
 
+## [1.8.0] - 2026-09-20
+
+- Added project-local Planner conversation bindings and exact-conversation wake adapters for Codex, OpenCode, Claude Code, and DeepSeek Harness.
+- Made `REPORTING` automatically resume the original Planner conversation, while keeping `PLANNING`, `WAITING_USER`, and `BLOCKED` foreground-controlled.
+- Added revision-checked wake keys, append-only wake journals, submission receipts, and separate model/presentation retry handling.
+- Kept idle polling local and model-free at a 45-second default interval, with per-project concurrency and duplicate-submission protection.
+- Guarded `REPORTING → DONE` behind Planner identity, Reviewer evidence, delivery ID, and wake-key validation; Runner still cannot write `DONE` directly.
+- Marked DeepSeek Harness support truthfully as static-only unless a real authenticated session probe succeeds.
+
 ## [1.7.0] - 2026-09-20
 
 - Made Planner foreground-only while Runner launches only Implementer and Reviewer in the background.

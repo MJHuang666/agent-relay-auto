@@ -21,6 +21,10 @@ for required_file in \
   shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runner.py \
   shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime/adapters/factory.py \
   shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime/state_store.py \
+  shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime/planner_channel.py \
+  shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime/wake_store.py \
+  shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime/reporting.py \
+  shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime/planner_wake/factory.py \
   shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime/runner.py \
   shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime/recovery.py \
   shared/.agents/skills/agent-relay-auto/assets/project-template/shared/.agents/skills/agent-relay-auto/SKILL.md \
@@ -35,10 +39,15 @@ for required_file in \
   shared/docs/agent/tasks/_template/STATE.md \
   codex/prompts/replace-agent.md \
   cursor/.cursor/commands/replace-agent.md \
+  docs/verification/automated-runner-v1.8.0.md \
   tests/test_workflow_state.py \
   tests/test_runner_service.py; do
   test -f "$required_file" || fail "missing required file: $required_file"
 done
+
+test "$(tr -d '[:space:]' < distribution/VERSION)" = '1.8.0' \
+  || fail "distribution/VERSION must be 1.8.0"
+grep -Fq '## [1.8.0]' CHANGELOG.md || fail "CHANGELOG is missing v1.8.0"
 
 cmp -s \
   shared/.agents/skills/agent-relay-auto/scripts/workflow_state.py \
@@ -64,6 +73,28 @@ for skill_file in \
   sed -n '2,40p' "$skill_file" | grep -Eq '^description: .+' || fail "missing description field: $skill_file"
 done
 
+for reporting_file in \
+  shared/.agents/skills/agent-relay-auto/SKILL.md \
+  shared/.agents/skills/agent-relay-auto/assets/project-template/shared/.agents/skills/agent-relay-auto/SKILL.md \
+  shared/.agents/skills/agent-relay-auto/references/runner.md \
+  shared/docs/agent/workflow.md \
+  docs/AGENT_RELAY_AUTO_USAGE.md \
+  docs/AGENT_RELAY_AUTO_USAGE.en-US.md; do
+  for contract in '.agent-relay-auto/planner-channel.json' '45' 'REPORTING'; do
+    grep -Fq "$contract" "$reporting_file" || fail "missing v1.8 reporting contract '$contract' in $reporting_file"
+  done
+done
+
+for wake_tool in codex opencode claude-code deepseek-harness; do
+  grep -Fq "\"$wake_tool\"" shared/.agents/skills/agent-relay-auto/scripts/agent_relay_runtime/planner_wake/factory.py \
+    || fail "missing Planner wake adapter mapping: $wake_tool"
+done
+
+grep -Fq 'static_only' shared/docs/agent/integrations.md \
+  || fail "DeepSeek Harness capability must be labelled truthfully"
+git check-ignore -q .agent-relay-auto/planner-channel.json \
+  || fail "Planner channel binding must remain ignored"
+
 cmp -s \
   shared/.agents/skills/agent-relay-auto/SKILL.md \
   shared/.agents/skills/agent-relay-auto/assets/project-template/shared/.agents/skills/agent-relay-auto/SKILL.md \
@@ -78,19 +109,22 @@ for contract_file in \
   shared/.agents/skills/agent-relay-auto/SKILL.md \
   shared/.agents/skills/agent-relay-auto/assets/project-template/shared/.agents/skills/agent-relay-auto/SKILL.md \
   shared/.agents/skills/agent-relay-auto/references/runner.md \
-  shared/docs/agent/workflow.md \
-  docs/AGENT_RELAY_AUTO_USAGE.md \
-  docs/AGENT_RELAY_AUTO_USAGE.en-US.md; do
-  for contract in 'waiting_foreground_planner' 'implementation-done' 'protocol_failure: no_handoff' 'heartbeat_stale_seconds'; do
+  shared/docs/agent/workflow.md; do
+  for contract in 'implementation-done' 'protocol_failure: no_handoff' 'heartbeat_stale_seconds'; do
     grep -Fq "$contract" "$contract_file" || fail "missing v1.7 contract '$contract' in $contract_file"
   done
 done
+
+grep -Fq 'waiting_foreground_planner' shared/.agents/skills/agent-relay-auto/references/runner.md \
+  || fail "PLANNING foreground wait contract is missing"
 
 for policy_file in \
   shared/.agents/skills/agent-relay-auto/assets/project-template/locales/zh-CN/docs/agent/automation-policy.yaml \
   shared/.agents/skills/agent-relay-auto/assets/project-template/locales/en-US/docs/agent/automation-policy.yaml; do
   grep -Fq 'execution_mode: foreground' "$policy_file" || fail "missing foreground Planner in $policy_file"
   grep -Fq 'heartbeat_stale_seconds: 45' "$policy_file" || fail "missing runtime defaults in $policy_file"
+  grep -Fq 'poll_interval_seconds: 45' "$policy_file" || fail "missing reporting interval in $policy_file"
+  grep -Fq 'require_same_conversation: true' "$policy_file" || fail "missing exact-conversation policy in $policy_file"
 done
 
 if rg -n 'Runner automatically starts Planner|Runner 自动启动 Planner' README.md README.zh-CN.md docs/AGENT_RELAY_AUTO_USAGE* shared/docs shared/.agents/skills/agent-relay-auto/references; then
@@ -167,7 +201,7 @@ if errors:
     sys.exit(1)
 PY
 
-metadata_files="$(find . \( -path './.git' -o -path './._.git' -o -path './dist' -o -path './.learnings' \) -prune -o -type f \( -name '._*' -o -name '.DS_Store' \) -print)"
+metadata_files="$(git ls-files | awk -F/ '$NF == ".DS_Store" || $NF ~ /^\._/')"
 test -z "$metadata_files" || fail "metadata files must not be tracked source: $metadata_files"
 
 bootstrap_example='shared/.agents/skills/agent-relay-auto/assets/project-template/shared/docs/agent/tasks/TASK-EXAMPLE-001'
@@ -181,17 +215,18 @@ archive="$build_dir/agent-relay-auto-skill-pack-v${version}.zip"
 checksum="$archive.sha256"
 
 mkdir -p "$package_root"
-cp -R shared "$package_root/shared"
-cp -R codex "$package_root/codex"
-cp -R cursor "$package_root/cursor"
-cp -R compat "$package_root/compat"
+for package_dir in shared codex cursor compat; do
+  rsync -a --exclude '._*' --exclude '.DS_Store' --exclude '__pycache__' --exclude '*.pyc' \
+    "$package_dir/" "$package_root/$package_dir/"
+done
 mkdir -p "$package_root/docs"
 cp docs/migration-v1.5.md "$package_root/docs/"
 cp distribution/INSTALL.md distribution/INSTALL_PROMPT.md distribution/VERSION "$package_root/"
+find "$package_root" -exec touch -h -t 202609200000 {} +
 
 (
   cd "$build_dir"
-  zip -qr "$archive" agent-relay-auto-skill-pack
+  find agent-relay-auto-skill-pack -print | LC_ALL=C sort | zip -X -q "$archive" -@
 )
 unzip -tqq "$archive"
 

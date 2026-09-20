@@ -1,8 +1,8 @@
 # Agent Relay Auto Skill Pack
 
-版本：1.6.3
+版本：1.8.0
 
-这个安装包把多智能体协作所需的 Skill、共享状态模板、状态安全脚本和工具入口放在一起。1.6.3 增加项目级故障隔离、真实 launchd 健康检查和不会被 JSONL 输出堵塞的日志采集。安装后，Planner、Implementer、Reviewer 通过目标仓库中的 `docs/agent/` 交接；对话框只负责触发命令，不再承担唯一上下文。正式 ZIP 与 SHA-256 校验文件应作为 GitHub Release 附件发布，而不是提交到源码仓库。
+这个安装包把多智能体协作所需的 Skill、共享状态模板、状态安全脚本和工具入口放在一起。1.8.0 在项目级 Runner 中增加原 Planner 对话自动汇报：Reviewer PASS 后，Runner 以 45 秒默认间隔检测 `REPORTING`，并恢复精确登记的 Planner 对话。安装后，Planner、Implementer、Reviewer 通过目标仓库中的 `docs/agent/` 交接；对话框不再承担唯一上下文。正式 ZIP 与 SHA-256 校验文件应作为 GitHub Release 附件发布，而不是提交到源码仓库。
 
 安装全局 Skill 后，可以在空白仓库中说 `$agent-relay-auto 初始化当前仓库` 或 `$agent-relay-auto initialize this repository`。Skill 会先询问中文/英文，再从内置 `assets/project-template/` 安装对应语言模板，通过对话完成三个角色的 participant/Agent/model/reasoning 配置。只有配置检查通过后，才会单独确认是否安装并启动 macOS launchd Runner。
 
@@ -10,7 +10,7 @@
 
 `更换 Agent`、`替换 Agent`、`replace agent` 和 `switch agent` 等价。它们允许旧 Agent 或新 Agent 在明确授权下更换某个角色的当前任务绑定、未来默认绑定或两者，并通过 Python 3 标准库脚本保护状态 revision。没有 Python 3 时工作流仍可手工串行使用，但会报告缺少锁、CAS 和原子写入保护。
 
-如果确认 Runner，项目进入自动模式：不同项目可并行，同一项目第一版串行执行一个活动任务。Reviewer 证据通过后由 Planner 生成最终报告并自动进入 `DONE`；该状态不授权 merge、push、release 或 deploy。
+如果确认 Runner，项目进入自动模式：不同项目可并行，同一项目第一版串行执行一个活动任务。初始化还会将原 Planner 对话绑定写入本地忽略文件 `.agent-relay-auto/planner-channel.json`。Reviewer 证据通过后，Runner 只恢复这个精确对话，Planner 生成最终报告并受保护地进入 `DONE`；该状态不授权 merge、push、release 或 deploy。
 
 ## 包内内容
 
@@ -114,6 +114,6 @@ docs/agent/PROJECT_STATUS.md
 
 ## 边界
 
-- 安装只建立文件协作协议，不会自动唤醒下一个智能体。
+- 手动模式只建立文件协作协议；自动模式在用户确认安装并启动 Runner 后，会自动调度 Implementer、Reviewer 和原 Planner 汇报对话。
 - 辅助脚本的短时锁只保护同一 checkout 的协调状态事务；产品代码、不同 worktree 和不同机器仍依赖单写入约定与显式同步。
 - `DONE` 只代表任务验收完成，不自动授权合并、发布、部署、删除或回滚。
