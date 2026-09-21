@@ -10,7 +10,7 @@
 
 ![Agent Relay Auto 自动工作流](docs/images/agent-relay-auto-workflow.png)
 
-## 一句话理解
+## 简介
 
 Agent Relay Auto 是一个轻量级多 Agent 接力协作框架，围绕同一个项目仓库实现可恢复、可审计的文件化协作。
 
