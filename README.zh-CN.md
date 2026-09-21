@@ -1,150 +1,323 @@
 # Agent Relay Auto
 
-> 让记忆属于项目，而不是属于某个 Agent。
+> 面向 Codex、OpenCode、Claude Code 等 Agent 的协议驱动型协作框架：让项目记忆可迁移，让任务接力可恢复，让交付闭环可自动运行。
 
-[English](README.md) · [项目介绍](docs/PROJECT_INTRO.md) · [最新版本](https://github.com/MJHuang666/agent-relay-auto/releases/latest) · [使用手册](docs/AGENT_RELAY_AUTO_USAGE.md)
+[English](README.md) · [项目介绍](docs/PROJECT_INTRO.md) · [完整使用手册](docs/AGENT_RELAY_AUTO_USAGE.md) · [最新发行版](https://github.com/MJHuang666/agent-relay-auto/releases/latest)
 
 [![Release](https://img.shields.io/github/v/release/MJHuang666/agent-relay-auto?display_name=tag&color=7C3AED)](https://github.com/MJHuang666/agent-relay-auto/releases/latest)
 [![License](https://img.shields.io/badge/license-Apache--2.0-0EA5E9)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/MJHuang666/agent-relay-auto/validate-release.yml?label=validation)](https://github.com/MJHuang666/agent-relay-auto/actions)
 
-<img width="1672" height="941" alt="Agent Relay Auto 工作流" src="https://github.com/user-attachments/assets/2d9e7307-8cb5-4f12-b91d-ca0beef9d3fd" />
+![Agent Relay Auto 自动工作流](docs/images/agent-relay-auto-workflow.png)
 
-**Agent Relay Auto 是一个轻量级多 Agent 接力协作框架，解决不同 Coding Agent 上下文不共享的问题。** 它让多个 Agent 围绕同一代码仓库持续完成 Plan → Implement → Review → Handoff，并把一次次对话沉淀成可迁移、可恢复、与 Agent 解耦的项目认知。
+## 一句话理解
 
-Agent 不需要共享 Conversation Context（对话上下文），只需要 Relay（接力）项目状态。
+Agent Relay Auto 是一个轻量级多 Agent 接力协作框架，围绕同一个项目仓库实现可恢复、可审计的文件化协作。
 
-自动模式下，Planner 始终是用户交互入口。Runner 在后台启动 Implementer 和 Reviewer，随后自动恢复原 Planner 对话完成最终汇报：Planner 前台 → Implementer → Reviewer → 原 Planner 对话 → `DONE`。`REPORTING` 不再要求用户输入“继续”；Runner 默认每 45 秒按项目检查一次。`WAITING_USER` 和 `BLOCKED` 仍需要用户处理。
+Agent Relay Auto 不要求不同 Agent 共享同一个聊天上下文，而是让它们共享同一个项目状态。需求、计划、实施证据、审查结论、交接记录和最终报告都落在仓库文件中，因此 Agent、模型、电脑或对话窗口发生变化时，项目认知仍然可以被恢复。
 
-原对话唤醒支持 `codex`、`opencode`、`claude-code` 和 `deepseek-harness`，能力状态如实标记为 `verified`、`experimental`、`static_only` 或 `unavailable`。本地绑定保存在已忽略的 `.agent-relay-auto/planner-channel.json`，状态输出只显示遮罩后的对话 ID。`DONE` 不代表 merge、push、release 或 deploy 授权。
+自动模式下，用户只需要和前台 Planner 沟通。Runner 在后台领取并启动 Implementer、Reviewer；Reviewer 通过后，Runner 自动恢复最初登记的 Planner 对话，Planner 汇总交付结果并完成 DONE：
 
-## 它解决的不是“聊天”，而是项目认知会丢失
+~~~text
+用户 ↔ 前台 Planner
+          │
+          ▼
+     生成需求与计划
+          │
+          ▼
+后台 Runner ──► Implementer ──► Reviewer
+     ▲                              │
+     └──── 自动返修 / 自动重规划 ────┘
+                                    │
+                                    ▼
+                         原 Planner 对话自动汇报
+                                    │
+                                    ▼
+                                   DONE
+~~~
 
-Agent 可能停止，聊天窗口可能结束，模型可能更换，电脑可能迁移，开发环境也可能被重装。
+REPORTING 不需要用户再次输入“继续”；默认项目轮询间隔为 45 秒。WAITING_USER、BLOCKED 和需求扩大仍然会回到前台，由用户做决定。
 
-但项目长期积累的“认知资产”不能跟着消失。
+![Agent Relay Auto 任务处理流程](docs/images/agent-relay-auto-task-flow.zh-CN.png)
 
-Agent Relay Auto 把真正需要继承的内容保存在仓库中：需求、计划、架构约束、决策、实施证据、审查结论、交接记录，以及紧凑的长期知识索引。无论哪个 Agent 在什么时候加入，都能读取这些项目状态，恢复这个项目已经积累的有效认知，而不必重新翻找或复述旧对话。
+## 核心理念：项目认知不能跟着 Agent 消失
 
-```text
-临时的对话上下文                              可持久化的项目认知
-────────────────                              ──────────────────
-一个窗口 · 一个模型 · 一台电脑       ──►      仓库文件 · Git 历史 · 可验证证据
-                                                   ↓
-                                      任意兼容 Agent 都可以接力恢复
-```
+单个聊天窗口不是可靠的长期工程记录：上下文可能截断，模型可能更换，Agent 可能耗尽额度，电脑和环境也可能迁移。真正需要继承的内容必须归项目所有。
 
-## 一个仓库，一条接力链
+~~~text
+临时聊天上下文                         项目级长期认知
+一个窗口 · 一个模型 · 一台电脑   ──►   仓库文件 · Git 历史 · 可验证证据
+                                             │
+                                             ▼
+                                  任意兼容 Agent 都可以接力恢复
+~~~
 
-```text
-需求 → 计划 → 实施 → 审查 → 返修 → 验证 → 交接
-       docs/agent/tasks/<TASK-ID>/
-```
+## 三个稳定角色，工具自由组合
 
-每次交接都会留下：做了什么、为什么这样做、验证了什么、下一步由谁执行。接棒的 Agent 读取项目接力记录，而不是从不完整的聊天窗口里猜测上下文。
+角色是稳定契约，工具只是可替换的执行载体。同一个工具可以承担多个角色，同一个角色也可以在不同工具之间安全切换。
 
-| 被保存下来的认知 | 为什么重要 |
-|---|---|
-| `PROJECT_STATUS.md` + `STATE.md` | 恢复活动任务、当前角色、参与者、revision 与交接位置。 |
-| `knowledge-index.md` | 让已经验证的架构、约束、决策和经验可以跨任务复用。 |
-| 需求、计划、实施、审查、决策文件 | 明确区分目标、实施证据与独立验收。 |
-| 追加式 progress 记录 | 保留推理与执行轨迹，又不会把文档变成聊天记录垃圾场。 |
-| 绑定 Git 的交付证据 | 让新环境可以确认被审查的究竟是哪一份代码。 |
-
-## 为角色协作而设计，而不是依赖一个“全能 Agent”
-
-| 角色 | 负责 | 边界 |
+| 角色 | 主要职责 | 明确边界 |
 |---|---|---|
-| **Planner** | 范围、非目标、计划、决策、验收标准 | 不修改产品代码。 |
-| **Implementer** | 代码、测试、实施证据、审查返修 | 不自行批准交付。 |
-| **Reviewer** | 独立审查、验证、完成决策 | 不直接修复产品代码。 |
+| **Planner / 规划者** | 澄清需求、定义范围和非目标、生成计划、记录决策、制定验收标准 | 不修改产品代码；需求歧义或范围扩大时请求用户决定 |
+| **Implementer / 实施者** | 按计划修改代码、编写测试、记录实施证据，并处理 Reviewer 返修 | 不自行批准交付；实施前必须明确 USE 或 DO_NOT_USE 子代理策略 |
+| **Reviewer / 审查者** | 独立检查需求、计划、代码差异、测试和交付证据，给出通过或返修结论 | 不直接修复产品代码；没有有效证据不能通过 |
 
-角色与工具解耦。同一个工具可以承担多个角色；同一角色也可以在不同工具之间切换，而项目状态不会丢失。
+标准自动闭环：
 
-<img width="1672" height="941" alt="Planner Implementer Reviewer 交接" src="https://github.com/user-attachments/assets/868c75bd-016f-4ed0-812b-20d53c51bd5e" />
+~~~text
+Planner 生成 plan.md
+    ↓
+Runner 启动 Implementer
+    ↓
+Implementer 生成 execution.md + 测试证据
+    ↓
+Runner 启动 Reviewer
+    ├─ PASS              → 原 Planner 自动汇报 → DONE
+    ├─ CHANGES_REQUESTED → Implementer 自动返修 → 再次 Review
+    ├─ REPLAN_REQUIRED   → Planner 回到前台重规划
+    └─ BLOCKED / WAITING_USER → 等待用户处理
+~~~
 
-## 三步开始
+## 主要能力
+
+| 能力 | 说明 |
+|---|---|
+| 文件化上下文 | docs/agent/ 是跨 Agent、跨模型、跨机器的共享认知层 |
+| 自动接力 | 合法状态转换后由 Runner 自动领取下一角色，不依赖用户搬运上下文 |
+| 原 Planner 自动汇报 | Reviewer 通过后恢复初始化时登记的 Planner 对话，不要求再次输入“继续” |
+| 并发隔离 | 不同项目可以并行；同一项目第一版每次只运行一个活动任务和一个角色回合 |
+| 安全交接 | task_id + revision + participant_id + lock 防止旧会话覆盖新状态 |
+| 可恢复执行 | 中断、超时或 Runner 重启后从持久化状态、heartbeat 和 run 日志恢复 |
+| 可审计交付 | Reviewer 证据、delivery ID、报告和最终状态都保存在任务目录 |
+| 可更换 Agent | 支持同角色 A → B → A 多次来回切换，保留不可变 participant ID 和原因记录 |
+
+## 支持的 Agent
+
+初始化时会为每个角色选择一个稳定 Tool ID：
+
+| 选项 | Tool ID | 自动模式说明 |
+|---|---|---|
+| Codex | codex | 支持后台实施、审查和 Planner 汇报 |
+| Cursor | cursor | 支持文件协议接力；本版本不用于原 Planner 自动唤醒 |
+| Claude Code | claude-code | 支持非交互后台适配器，首次启动需验证凭证和模型 |
+| WorkBuddy | workbuddy | 文件协议接力 |
+| ZCode | zcode | 文件协议接力 |
+| Trae | trae | 文件协议接力 |
+| DeepSeek Harness | deepseek-harness | Planner 唤醒能力按 static_only / experimental 如实标记 |
+| OpenCode | opencode | 支持非交互后台适配器和 Planner 汇报，首次启动需验证 |
+| Other | 用户自定义稳定 ID | 按能力降级到手动模式 |
+
+OpenCode 和 DeepSeek Harness 复用根目录 AGENTS.md、.agents/skills/agent-relay-auto/ 与 docs/agent/，不创建 .opencode/skills 或 .dsh/skills 重复协议副本。
+
+## 从零初始化到自动运行
+
+### 0. 准备环境
+
+- 在目标项目根目录执行初始化；不要在父目录或 Skill 源码目录初始化。
+- 建议使用 Git，以便绑定交付版本和审查差异。
+- Python 3 用于短时文件锁、revision-CAS 和原子写入保护；没有 Python 3 仍可手动串行接力，但会降级并明确提示。
+- 自动 Runner 当前使用 macOS launchd；CLI Agent 的登录、凭证和模型必须先在本机可用。
 
 ### 1. 安装 Skill
 
-将 `agent-relay-auto` 安装为个人 Skill，或下载[最新发行包](https://github.com/MJHuang666/agent-relay-auto/releases/latest)。
+任选一种方式：
 
-### 2. 初始化仓库
+1. 安装个人 Skill：把发行包中的 shared/.agents/skills/agent-relay-auto/ 安装到当前工具的个人 Skills 目录。
+2. 从 GitHub Releases 下载 Skill 包，并按 distribution/INSTALL.md 合并到目标工具。
 
-```text
+安装成功后，在目标项目的 Planner 对话中执行下一步命令。Skill 会在初始化时复制项目级模板和共享协议；不需要手工寻找或配置“Adapter factory”。
+
+### 2. 初始化当前仓库
+
+在目标仓库根目录打开 Planner 对话，输入：
+
+~~~text
 $agent-relay-auto 初始化当前仓库
 # 或
 $agent-relay-auto initialize this repository
-```
+~~~
 
-初始化器会先询问项目语言，再为 Planner、Implementer、Reviewer 绑定工具。它只补齐缺失文件，不会覆盖已有项目状态。
+初始化只补齐缺失文件，不覆盖已有产品代码、任务记录、角色绑定或项目规则。
 
-### 3. 持续接力
+### 3. 先选项目语言
 
-每次交接后，打开分配给下一位参与者的工具并输入：
+Skill 首先询问：
 
-```text
-$agent-relay-auto 继续
+1. 中文（zh-CN）
+2. English（en-US）
+
+这个选择会写入 docs/agent/PROJECT_STATUS.md，并决定后续选项、需求、计划、执行记录、审查报告和验收报告的语言。协议字段名和状态枚举保持稳定，不会被翻译。
+
+### 4. 为三个角色选择 Agent 和身份
+
+依次选择 Planner、Implementer、Reviewer 的 Agent，并为每个角色确认唯一 participant_id。可以三个角色都使用 Codex，也可以混用 Codex、OpenCode、Claude Code 等工具。
+
+初始化会显示当前配置（如果已有配置），让你选择“确认”或“修改”。不会因为当前打开的是某个工具，就擅自推断角色身份。
+
+### 5. 配置模型、推理参数和自动策略
+
+对每个角色，Skill 会通过对话确认：
+
+- participant_id
+- Agent Tool ID
+- 模型 ID
+- 工具专用推理参数：Codex 使用 reasoning_effort，OpenCode 使用 variant，Claude Code 使用 effort
+
+初始化时同时展示自动策略默认值，减少误填：
+
+| 配置 | 默认值 |
+|---|---:|
+| 最大返修轮数 | 3 |
+| 最大自动重规划次数 | 1 |
+| Agent 失败重试 | 1 |
+| 同角色备用 Agent 自动切换 | 关闭 |
+| 成本控制 | balanced（第 8 次 run 提醒，第 12 次停止新的 run） |
+
+配置不完整、模型仍为占位值、Agent 不支持后台自动运行或 Planner 对话未登记时，Runner 不会启动；Skill 会在对话中指出具体缺项并引导修复。
+
+### 6. 单独确认是否安装并启动 Runner
+
+三角色配置完成后，Skill 会再次展示完整摘要，并单独询问：是否安装并启动本项目的 Runner。
+
+- 选择“不安装”：项目保持 manual，继续使用文件化手动接力。
+- 选择“安装并启动”：Skill 检查 ready_to_start: true，安装版本化 Runner，注册当前项目并启动 macOS launchd 服务。
+
+Runner 使用初始化时登记的 Planner 对话作为唯一汇报入口。登记信息写入被忽略的 .agent-relay-auto/planner-channel.json，状态输出只展示遮罩后的对话 ID。
+
+### 7. 验证自动化已进入工作状态
+
+在 Planner 对话中检查：
+
+~~~text
+$agent-relay-auto Runner 状态
 # 或
+$agent-relay-auto runner status
+~~~
+
+确认项目状态为已注册、配置完整、服务已加载。需要排查时使用：
+
+~~~text
+$agent-relay-auto 查看日志
+$agent-relay-auto 跟踪日志
+~~~
+
+运行日志、heartbeat、stdout/stderr、退出记录和协议事件位于目标项目的：
+
+~~~text
+.agent-relay-auto/runs/<TASK-ID>/<RUN-ID>/
+~~~
+
+该目录必须加入 .gitignore，不会成为项目交付的一部分。
+
+## 初始化之后，怎样真正进入自动化
+
+初始化和 Runner 启动完成后，用户不需要分别打开 Implementer 和 Reviewer，也不需要手工复制计划。直接回到原 Planner 对话，用自然语言布置任务：
+
+~~~text
+请实现一个用户登录功能，要求：
+1. 支持邮箱和密码登录；
+2. 增加单元测试；
+3. 不修改现有数据库迁移；
+4. 验收以测试通过和 Reviewer 独立审查为准。
+~~~
+
+Planner 会：
+
+1. 澄清需求、非目标和验收条件；
+2. 写入 requirement.md、plan.md 和任务 STATE.md；
+3. 如需子代理，先让用户选择 USE 或 DO_NOT_USE；
+4. 合法交接给 Runner。
+
+之后 Runner 自动完成：
+
+1. 领取 Implementer 回合并注入任务、角色、模型和运行配置；
+2. 读取实施证据，必要时按上限自动返修；
+3. 启动独立 Reviewer，要求有效测试和审查证据；
+4. Reviewer 通过后恢复原 Planner 对话；
+5. Planner 自动读取 review.md、delivery evidence 和进度文件，输出最终汇报并完成 DONE。
+
+用户只会在需要决策、范围扩大、凭证/权限问题、达到策略上限或进入 BLOCKED 时被打断。Planner 窗口最小化或切换到其他应用不会停止后台 Implementer、Reviewer 和 Runner。
+
+## 手动模式与自动模式
+
+| 项目 | 手动模式 | 自动模式 |
+|---|---|---|
+| Planner | 前台沟通 | 前台沟通 |
+| Implementer / Reviewer | 用户打开对应工具并输入“继续” | Runner 后台自动启动 |
+| 最终汇报 | 用户回到 Planner 输入“继续” | Runner 自动恢复原 Planner 对话 |
+| 适合场景 | 未安装 Runner、工具不支持 CLI 或调试 | 已完成配置并希望减少人工搬运 |
+| 共同边界 | 都依赖仓库状态；都不自动 merge、push、release、deploy | 同左 |
+
+手动接力命令：
+
+~~~text
+$agent-relay-auto 继续
 $agent-relay-auto continue
-```
+~~~
 
-Agent 会确认自己的 participant Profile，读取项目接力状态，判断是否轮到自己；若未轮到，就明确报告当前正在等待的参与者。
+自动 Runner 管理命令：
 
-## 工具无关，项目优先
+~~~text
+$agent-relay-auto Runner 状态
+$agent-relay-auto 启动 Runner
+$agent-relay-auto 停止 Runner
+$agent-relay-auto 重启 Runner
+$agent-relay-auto 查看日志
+$agent-relay-auto 跟踪日志
+$agent-relay-auto 暂停当前任务
+$agent-relay-auto 立即中断当前角色
+$agent-relay-auto 恢复当前任务
+~~~
 
-Agent Relay Auto 为 Codex 与 Cursor 提供直接入口，并为 DeepSeek Harness 和 OpenCode 提供一等共享入口说明。Claude Code、WorkBuddy、ZCode、Trae 及其他 Coding Agent 也可以使用同一套仓库协议。
+## 项目状态目录
 
-真正长期稳定的契约不是某个厂商的对话格式，而是项目仓库本身。
-
-| 现实场景 | Relay 如何处理 |
-|---|---|
-| 某个 Agent 的 token 用完 | 安全替换同角色参与者，记录管理交接并进行 revision 校验。 |
-| 切换电脑或 worktree | 显式同步仓库、核验交付版本，再从接力状态恢复。 |
-| 聊天或环境重置 | 读取项目总览、知识索引、任务状态和上一个交接记录。 |
-| 迁移时存在未提交工作 | 使用已文档化的未提交状态交接包；Git clone 只能恢复已提交状态。 |
-
-## 安全更换 Agent
-
-旧 Agent 或新 Agent 都可以发起同角色参与者更换。A → B → A 可以多次来回切换，每次都会留下可审计的管理记录。
-
-```text
-$agent-relay-auto 更换 Agent
-$agent-relay-auto 替换 Agent
-$agent-relay-auto replace agent
-$agent-relay-auto switch agent
-```
-
-可选 Python 辅助脚本提供短时本地锁、expected revision 校验和原子化协调写入。它还能识别 v1.4 的旧锁名，并在新旧锁同时存在时拒绝含糊的自动恢复。
-
-## 仓库中的接力结构
-
-```text
-.agents/skills/agent-relay-auto/     项目级 Skill 与状态安全脚本
+~~~text
 docs/agent/
-  PROJECT_STATUS.md              项目入口与活动任务索引
-  knowledge-index.md             已验证、可复用的项目认知
-  role-bindings.md               稳定的角色与参与者身份
-  tasks/<TASK-ID>/               需求、计划、证据、审查与交接
-```
+├── PROJECT_STATUS.md       # 项目入口、活动任务、语言和当前阶段
+├── knowledge-index.md      # 已验证、可跨任务复用的项目认知
+├── role-bindings.md        # 稳定角色和 participant_id 绑定
+├── profiles/               # 各 Agent 的角色 Profile
+└── tasks/<TASK-ID>/
+    ├── STATE.md            # 唯一实时状态源
+    ├── requirement.md      # 需求、范围、非目标、验收标准
+    ├── plan.md             # Planner 计划与决策
+    ├── execution.md        # Implementer 实施、测试和 delivery evidence
+    ├── review.md           # Reviewer 独立结论和返修要求
+    ├── decisions.md        # 需要长期保留的任务决策
+    └── progress/            # 追加式阶段记录
+~~~
 
-完整生命周期请阅读：[中文使用手册](docs/AGENT_RELAY_AUTO_USAGE.md)、[English guide](docs/AGENT_RELAY_AUTO_USAGE.en-US.md) 与 [v1.5 迁移说明](docs/migration-v1.5.md)。
+Runner 的运行态与日志不进入 docs/agent/，而在被忽略的 .agent-relay-auto/ 下保存。项目级状态属于仓库；机器级 Runner 服务只是执行器，不是认知的唯一来源。
 
-## 清晰的边界
+## 安全边界
 
-Agent Relay Auto 有意保持轻量。它不是权限系统、Git 替代品、分布式锁或自动部署服务。
+- DONE 只代表 Reviewer 证据有效、Planner 汇报完成和需求验收通过。
+- DONE 不代表自动合并、推送、发布、部署、生产写入、删除或回滚。
+- Runner 只执行合法状态转换，不从自然语言猜测 Reviewer verdict，也不直接写 DONE。
+- 锁和 revision 保护同一 checkout 的协调状态，不是权限系统，也不协调多台机器。
+- 旧 Agent 和新 Agent 可以多次 A → B → A 切换；每次更换都保留原因、授权、范围和 revision 记录。
+- 密钥、凭证、需求歧义、范围扩大和高风险外部操作必须回到用户处理。
 
-- 手动模式由用户打开下一工具继续接力；自动模式由 Runner 根据有效状态转换启动下一角色。
-- 辅助锁只保护单个 checkout 的协调状态，不锁产品代码，也不协调多台机器。
-- Git 同步、合并、发布与部署仍是需要人明确授权的操作。
-- `DONE` 只代表任务验收完成。
+## 项目目录
 
-## 验证与贡献
+~~~text
+.agents/skills/agent-relay-auto/   共享 Skill、协议和状态安全脚本
+codex/                             Codex 入口和提示文件
+cursor/                            Cursor 入口和提示文件
+shared/docs/agent/                 初始化模板、协议和角色 Profile
+docs/                              双语说明、使用手册、验证报告和流程图
+compat/                            旧命令名兼容入口
+distribution/                      安装说明和发行包元数据
+~~~
 
-贡献前运行与发行等价的校验：
+## 验证、升级和贡献
 
-```bash
+发行等价校验：
+
+~~~bash
 bash .github/scripts/validate-release.sh
-```
+~~~
 
-请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)、[SECURITY.md](SECURITY.md) 和 [CHANGELOG.md](CHANGELOG.md)。Agent Relay Auto 使用 [Apache-2.0](LICENSE) 许可证。
+升级已有项目时，只同步 Skill、协议和缺失模板；不要覆盖目标项目自己的 PROJECT_STATUS.md、角色绑定、Profile、任务记录或架构约束。完整升级流程见 [中文使用手册](docs/AGENT_RELAY_AUTO_USAGE.md)、[英文使用手册](docs/AGENT_RELAY_AUTO_USAGE.en-US.md)、[安装说明](distribution/INSTALL.md) 和 [变更记录](CHANGELOG.md)。
+
+欢迎通过 Issue 或 Pull Request 参与改进。请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md)、[SECURITY.md](SECURITY.md) 和 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。本项目使用 [Apache-2.0](LICENSE) 许可证。
