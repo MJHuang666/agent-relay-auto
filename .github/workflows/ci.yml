@@ -41,6 +41,6 @@ jobs:
       - name: Prove foreground Planner hybrid loop
         run: python3 -m unittest tests.test_hybrid_relay_e2e tests.test_protocol_failure -v
       - name: Prove original Planner auto-reporting
-        run: python3 -m unittest tests.test_reporting_e2e tests.test_reporting_coordinator tests.test_planner_wake_cli_bridges tests.test_deepseek_harness_planner_wake -v
+        run: python3 -m unittest tests.test_planner_reporting_e2e tests.test_reporting_coordinator tests.test_planner_wake_cli_bridges tests.test_deepseek_harness_planner_wake -v
       - name: Validate Runner installer without installing launchd
         run: python3 shared/.agents/skills/agent-relay-auto/scripts/setup_runner.py install --source-skill shared/.agents/skills/agent-relay-auto --version ci --dry-run
