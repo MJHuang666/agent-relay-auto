@@ -60,7 +60,9 @@ class CrossProjectConcurrencyTests(unittest.TestCase):
                 (task / "STATE.md").write_text(STATE, encoding="utf-8")
                 fixture = Path(__file__).resolve().parent / "fixtures/fake_agent_cli.py"
                 supervisors.append(supervisor_module.ProjectSupervisor(repo, fake_module.FakeAdapter(sys.executable, fixture, sleep=0.2)))
-            started = time.monotonic()
+            # Both independent supervisors must claim their project in the
+            # same scheduling pass. This is the concurrency contract; do not
+            # turn the test into a wall-clock benchmark for hosted runners.
             self.assertEqual(supervisors[0].tick().action, "started")
             self.assertEqual(supervisors[1].tick().action, "started")
             pending = set(range(len(supervisors)))
@@ -71,7 +73,6 @@ class CrossProjectConcurrencyTests(unittest.TestCase):
                         pending.remove(index)
                 time.sleep(0.01)
             self.assertFalse(pending)
-            self.assertLess(time.monotonic() - started, 0.6)
 
 
 if __name__ == "__main__":

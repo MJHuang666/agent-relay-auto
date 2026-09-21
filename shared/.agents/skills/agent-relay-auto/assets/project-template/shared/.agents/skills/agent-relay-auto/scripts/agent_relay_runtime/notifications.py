@@ -73,4 +73,9 @@ class MacOSNotifier:
         title = f"Agent Relay Auto · {state}"
         body = f"{project} / {task_id}: {reason}"
         script = "display notification " + json.dumps(body) + " with title " + json.dumps(title)
-        self.runner(["osascript", "-e", script], check=False, capture_output=True, text=True)
+        try:
+            self.runner(["osascript", "-e", script], check=False, capture_output=True, text=True)
+        except FileNotFoundError:
+            # CI and non-macOS hosts do not provide osascript. Notifications are
+            # advisory; a missing desktop notifier must not break the workflow.
+            return
