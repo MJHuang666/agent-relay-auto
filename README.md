@@ -8,7 +8,8 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-0EA5E9)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/MJHuang666/agent-relay-auto/validate-release.yml?label=validation)](https://github.com/MJHuang666/agent-relay-auto/actions)
 
-<img width="1672" height="941" alt="Agent Relay Auto workflow" src="https://github.com/user-attachments/assets/c613f203-32b8-4056-aa8e-1f53f6ec1200" />
+<img width="1672" height="941" alt="83139ce93b4eded9d419599ae8934a05" src="https://github.com/user-attachments/assets/2c4b79cd-6a4a-4da4-843a-471ec02dd509" />
+
 
 **Agent Relay Auto is a lightweight multi-Agent collaboration framework for sustained work in one code repository.** It turns fragmented Coding Agent conversations into durable, portable project cognition: Plan → Implement → Review → Handoff.
 
@@ -61,7 +62,8 @@ Every handoff records what happened, why it happened, what was verified, and who
 
 Roles are independent from tools. The same tool can serve multiple roles; a role can move between tools without losing the project’s shared state.
 
-<img width="1672" height="941" alt="Planner Implementer Reviewer handoff" src="https://github.com/user-attachments/assets/be8dc516-a6e7-4c4e-9027-4321259445e7" />
+<img width="1672" height="941" alt="1b85cbbf3527dabe8f75587cae4ed140" src="https://github.com/user-attachments/assets/c6fa2e96-7907-4c90-8128-3cd130f1e5fa" />
+
 
 ## Start in three steps
 
