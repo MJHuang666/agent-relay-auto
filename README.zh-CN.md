@@ -62,7 +62,8 @@ Agent Relay Auto 把真正需要继承的内容保存在仓库中：需求、计
 
 角色与工具解耦。同一个工具可以承担多个角色；同一角色也可以在不同工具之间切换，而项目状态不会丢失。
 
-<img width="1672" height="941" alt="Planner Implementer Reviewer 交接" src="https://github.com/user-attachments/assets/868c75bd-016f-4ed0-812b-20d53c51bd5e" />
+<img width="1672" height="941" alt="594a7e2b80203cc4bf389c304bd95d11" src="https://github.com/user-attachments/assets/2ecbf415-4ba9-48e9-a551-9714fa173017" />
+
 
 ## 三步开始
 
