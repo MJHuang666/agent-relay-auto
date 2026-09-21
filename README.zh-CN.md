@@ -8,7 +8,8 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-0EA5E9)](LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/MJHuang666/agent-relay-auto/validate-release.yml?label=validation)](https://github.com/MJHuang666/agent-relay-auto/actions)
 
-<img width="1672" height="941" alt="Agent Relay Auto 工作流" src="https://github.com/user-attachments/assets/2d9e7307-8cb5-4f12-b91d-ca0beef9d3fd" />
+<img width="1672" height="941" alt="83139ce93b4eded9d419599ae8934a05" src="https://github.com/user-attachments/assets/5bfe2da2-3e32-4ce4-87de-4411b1f178dc" />
+
 
 **Agent Relay Auto 是一个轻量级多 Agent 接力协作框架，解决不同 Coding Agent 上下文不共享的问题。** 它让多个 Agent 围绕同一代码仓库持续完成 Plan → Implement → Review → Handoff，并把一次次对话沉淀成可迁移、可恢复、与 Agent 解耦的项目认知。
 
